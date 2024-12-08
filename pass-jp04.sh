@@ -15,7 +15,7 @@ Error="${Red_font_prefix}[错误]${Font_color_suffix}"
 Tip="${Green_font_prefix}[注意]${Font_color_suffix}"
 
 # 配置参数
-API_TOKEN="fEygweu4v4vOUtgmR3NKUq0lLVk4M_dS7UR5x27x"  # 替换为你的 Cloudflare API Token
+API_TOKEN="ZCi8YCsNVEzJJt32-QB7QsQlY6A8dxwwqMKmM7dF"  # 替换为你的 Cloudflare API Token
 DOMAIN="jp04.fxscloud.com"                            # 子域名
 ROOT_DOMAIN="fxscloud.com"                           # 主域名
 
