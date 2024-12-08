@@ -19,7 +19,7 @@ API_TOKEN="fEygweu4v4vOUtgmR3NKUq0lLVk4M_dS7UR5x27x"  # 替换为你的 Cloudfla
 DOMAIN="jp02.fxscloud.com"                            # 子域名
 ROOT_DOMAIN="fxscloud.com"                           # 主域名
 
-# 第一部分：网络优化配置
+# 第一步：设置网络优化参数
 echo "正在配置网络优化参数..."
 
 cat <<EOF >> /etc/sysctl.conf
@@ -56,7 +56,7 @@ EOF
 sysctl -p
 echo -e "${Info}网络优化参数已成功配置并应用！"
 
-# 第二部分：安装 Docker
+# 第二步：安装 Docker
 echo "开始检查并安装 Docker..."
 if docker version > /dev/null 2>&1; then
     echo -e "${Info}Docker 已安装，跳过安装步骤。"
@@ -77,7 +77,7 @@ else
     echo -e "${Info}Docker 安装完成且服务已重启。"
 fi
 
-# 第三部分：配置系统时区
+# 第三步：配置系统时区
 echo "开始配置系统时区为 Asia/Shanghai..."
 echo "Asia/Shanghai" | sudo tee /etc/timezone
 sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
@@ -88,7 +88,7 @@ else
     echo -e "${Error}时区配置失败，请手动检查配置文件。"
 fi
 
-# 第四部分：安装并配置 Cloudflare DDNS
+# 第四步：安装并配置 Cloudflare DDNS
 echo "开始检查并安装 jq..."
 
 if ! command -v jq &>/dev/null; then
@@ -145,5 +145,24 @@ else
     echo "DDNS 更新失败！"
     exit 1
 fi
+
+# 第五步：下载并执行 install.sh 脚本
+echo "开始下载并执行 install.sh 脚本..."
+
+wget -O install.sh --no-check-certificate http://ytpass.fxscloud.com:666/client/J6XHnj7FaJT6lzA2/install.sh
+if [ $? -ne 0 ]; then
+    echo -e "${Error}下载 DDNS 更新脚本失败！"
+    exit 1
+fi
+
+bash install.sh
+if [ $? -ne 0 ]; then
+    echo -e "${Error}执行 DDNS 更新脚本失败！"
+    rm -f install.sh
+    exit 1
+fi
+
+rm install.sh -f
+echo -e "${Info}install.sh 脚本执行完成！"
 
 echo -e "${Info}所有步骤已完成！"
