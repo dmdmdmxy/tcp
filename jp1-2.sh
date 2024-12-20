@@ -247,6 +247,11 @@ vaxilu/soga
 echo -e "${Info}所有 Docker 容器已成功启动！"
 
 # 第六步：安装并启动 Nezha 监控 Agent
+echo "检查并安装 unzip..."
+if ! command -v unzip &>/dev/null; then
+    echo "unzip 未安装，正在安装..."
+    apt update && apt install -y unzip
+fi
 echo "开始安装并启动 Nezha 监控 Agent..."
 
 wget https://github.com/nezhahq/agent/releases/download/v0.20.5/nezha-agent_linux_amd64.zip && \
