@@ -219,4 +219,121 @@ vaxilu/soga
 
 echo -e "${Info}所有 Docker 容器已成功启动！"
 
+# 第六步：安装并启动 Nezha 监控 Agent
+echo "检查并安装 unzip..."
+if ! command -v unzip &>/dev/null; then
+    echo "unzip 未安装，正在安装..."
+    apt update && apt install -y unzip
+fi
+echo "开始安装并启动 Nezha 监控 Agent..."
+
+wget https://github.com/nezhahq/agent/releases/download/v0.20.5/nezha-agent_linux_amd64.zip && \
+unzip nezha-agent_linux_amd64.zip && \
+chmod +x nezha-agent && \
+./nezha-agent service install -s 15.235.144.68:5555 -p TNK5zfZBJi7gTeTNIt
+
+echo -e "${Info}Nezha 监控 Agent 安装并启动完成！"
+
+# 第七步：创建并写入配置文件
+echo "开始创建并写入配置文件..."
+
+# 确保 /etc/soga 目录存在
+if [ ! -d "/etc/soga" ]; then
+    mkdir -p /etc/soga
+    echo "已创建目录 /etc/soga"
+else
+    echo "目录 /etc/soga 已存在，跳过创建。"
+fi
+
+# 创建 /etc/soga/dns.yml 文件并写入内容
+cat <<EOF > /etc/soga/dns.yml
+gpt-jp01.ytjscloud.com:62580:
+  strategy: ipv4_first
+  rules:
+    - domain:openai.com
+    - domain:chat.openai.com
+    - domain:challenges.cloudflare.com
+    - domain:auth0.openai.com
+    - domain:platform.openai.com
+    - domain:ai.com
+    - domain:chatgpt.com
+    - domain:oaiusercontent.com
+    - domain:browser-intake-datadoghq.com
+    - domain:otokyo1a.turn.livekit.cloud
+    - domain:media.giphy.com
+    - domain:i1.wp.com
+    - domain:s.gravatar.com
+    - domain:api.revenuecat.com
+    - domain:auth0.com
+    - domain:o33249.ingest.sentry.io
+    - domain:oaistatic.com
+    - domain:featureassets.org
+    - domain:prodregistryv2.org
+EOF
+
+if [ $? -eq 0 ]; then
+    echo "文件 /etc/soga/dns.yml 已成功创建并写入内容。"
+else
+    echo "创建 /etc/soga/dns.yml 失败！"
+    exit 1
+fi
+
+# 创建 /etc/soga/routes.toml 文件并写入内容
+cat <<EOF > /etc/soga/routes.toml
+enable=true
+
+[[routes]]
+rules=[
+"geosite:netflix",
+"geosite:disney",
+"geosite:dazn",
+]
+[[routes.Outs]]
+listen=""
+type="ss"
+server="nf-disney-jp.ytjscloud.com"
+port=4610
+password="D2AmLZIWlMulG5ki"
+cipher="aes-128-gcm"
+
+[[routes]]
+rules=["*"]
+
+[[routes.Outs]]
+listen=""
+type="direct"
+EOF
+
+if [ $? -eq 0 ]; then
+    echo "文件 /etc/soga/routes.toml 已成功创建并写入内容。"
+else
+    echo "创建 /etc/soga/routes.toml 失败！"
+    exit 1
+fi
+
+echo -e "${Info}配置文件已成功创建并写入！"
+
+# 第八步：重新启动所有 Docker 容器
+echo "开始重新启动所有 Docker 容器..."
+
+# 停止所有容器
+docker stop $(docker ps -a | awk '{ print $1}' | tail -n +2)
+if [ $? -eq 0 ]; then
+    echo -e "${Info}所有 Docker 容器已成功停止。"
+else
+    echo -e "${Error}停止 Docker 容器时发生错误，请检查。"
+    exit 1
+fi
+
+# 启动所有容器
+docker start $(docker ps -a | awk '{ print $1}' | tail -n +2)
+if [ $? -eq 0 ]; then
+    echo -e "${Info}所有 Docker 容器已成功启动。"
+else
+    echo -e "${Error}启动 Docker 容器时发生错误，请检查。"
+    exit 1
+fi
+
+echo -e "${Info}所有 Docker 容器已重新启动完成！"
+
 echo -e "${Info}所有步骤已完成！"
