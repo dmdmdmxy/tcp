@@ -119,7 +119,7 @@ echo "获取 Record ID..."
 RECORD_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?name=$DOMAIN" \
     -H "Authorization: Bearer $API_TOKEN" \
     -H "Content-Type: application/json")
-RECORD_ID=$(echo "$RECORD_RESPONSE" | jq -r '.result[0].id')
+RECORD_ID=$(echo "$RECORD_ID" | jq -r '.result[0].id')
 
 if [ -z "$RECORD_ID" ] || [ "$RECORD_ID" == "null" ]; then
     echo "无法获取 Record ID，请检查子域名是否存在于 Cloudflare DNS 设置中。"
@@ -127,24 +127,41 @@ if [ -z "$RECORD_ID" ] || [ "$RECORD_ID" == "null" ]; then
 fi
 echo "Record ID: $RECORD_ID"
 
-CURRENT_IP=$(curl -s https://api.ipify.org)
-if [ -z "$CURRENT_IP" ]; then
+# 创建更新脚本
+DDNS_UPDATE_SCRIPT="/usr/local/bin/update_ddns.sh"
+cat <<EOF > $DDNS_UPDATE_SCRIPT
+#!/bin/bash
+CURRENT_IP=\$(curl -s https://api.ipify.org)
+if [ -z "\$CURRENT_IP" ]; then
     echo "无法获取当前 IP 地址，请检查网络连接。"
     exit 1
 fi
 
-echo "正在更新 Cloudflare DNS 记录..."
-UPDATE_RESPONSE=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID" \
+UPDATE_RESPONSE=\$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID" \
     -H "Authorization: Bearer $API_TOKEN" \
     -H "Content-Type: application/json" \
-    --data "{\"type\":\"A\",\"name\":\"$DOMAIN\",\"content\":\"$CURRENT_IP\",\"ttl\":1,\"proxied\":false}")
+    --data "{\"type\":\"A\",\"name\":\"$DOMAIN\",\"content\":\"\$CURRENT_IP\",\"ttl\":1,\"proxied\":false}")
 
-if echo "$UPDATE_RESPONSE" | grep -q "\"success\":true"; then
-    echo "DDNS 更新成功！子域名 $DOMAIN 已解析到 $CURRENT_IP"
+if echo "\$UPDATE_RESPONSE" | grep -q "\"success\":true"; then
+    echo "DDNS 更新成功！子域名 $DOMAIN 已解析到 \$CURRENT_IP"
 else
     echo "DDNS 更新失败！"
-    exit 1
 fi
+EOF
+
+# 设置脚本权限
+chmod +x $DDNS_UPDATE_SCRIPT
+echo "DDNS 更新脚本已创建并设置为可执行：$DDNS_UPDATE_SCRIPT"
+
+# 添加定时任务到 crontab
+echo "配置定时任务，每分钟自动更新 DDNS..."
+(crontab -l 2>/dev/null; echo "* * * * * $DDNS_UPDATE_SCRIPT") | crontab -
+if [ $? -eq 0 ]; then
+    echo "定时任务已成功添加，每分钟自动更新 DDNS。"
+else
+    echo "添加定时任务失败，请手动检查 crontab 配置。"
+fi
+
 
 # 第五步：下载并执行 install.sh 脚本
 echo "开始下载并执行 install.sh 脚本..."
