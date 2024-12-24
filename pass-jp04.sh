@@ -89,20 +89,19 @@ else
 fi
 
 # 第四步：安装并配置 Cloudflare DDNS
-echo "开始检查并安装 jq..."
+echo "开始检查并安装必要工具..."
 
-if ! command -v jq &>/dev/null; then
-    echo "检测到 jq 未安装，正在安装 jq..."
-    if [ -f /etc/debian_version ]; then
-        sudo apt update && sudo apt install -y jq
-    elif [ -f /etc/redhat-release ]; then
-        sudo yum install -y epel-release && sudo yum install -y jq
-    else
-        echo "无法自动安装 jq，请手动安装后重试。"
-        exit 1
-    fi
+if ! command -v curl &>/dev/null; then
+    echo "curl 未安装，正在安装..."
+    sudo apt update && sudo apt install -y curl
 fi
 
+if ! command -v jq &>/dev/null; then
+    echo "jq 未安装，正在安装..."
+    sudo apt update && sudo apt install -y jq
+fi
+
+# 获取 Zone ID
 echo "获取 Zone ID..."
 ZONE_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$ROOT_DOMAIN" \
     -H "Authorization: Bearer $API_TOKEN" \
@@ -110,22 +109,23 @@ ZONE_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=
 ZONE_ID=$(echo "$ZONE_RESPONSE" | jq -r '.result[0].id')
 
 if [ -z "$ZONE_ID" ] || [ "$ZONE_ID" == "null" ]; then
-    echo "无法获取 Zone ID，请检查 API Token 和主域名是否正确。"
+    echo "${Error}无法获取 Zone ID，请检查 API Token 和主域名是否正确。"
     exit 1
 fi
-echo "Zone ID: $ZONE_ID"
+echo "${Info}Zone ID: $ZONE_ID"
 
+# 获取 Record ID
 echo "获取 Record ID..."
 RECORD_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?name=$DOMAIN" \
     -H "Authorization: Bearer $API_TOKEN" \
     -H "Content-Type: application/json")
-RECORD_ID=$(echo "$RECORD_ID" | jq -r '.result[0].id')
+RECORD_ID=$(echo "$RECORD_RESPONSE" | jq -r '.result[0].id')
 
 if [ -z "$RECORD_ID" ] || [ "$RECORD_ID" == "null" ]; then
-    echo "无法获取 Record ID，请检查子域名是否存在于 Cloudflare DNS 设置中。"
+    echo "${Error}无法获取 Record ID，请检查子域名是否存在于 Cloudflare DNS 设置中。"
     exit 1
 fi
-echo "Record ID: $RECORD_ID"
+echo "${Info}Record ID: $RECORD_ID"
 
 # 创建更新脚本
 DDNS_UPDATE_SCRIPT="/usr/local/bin/update_ddns.sh"
@@ -149,32 +149,29 @@ else
 fi
 EOF
 
-# 设置脚本权限
 chmod +x $DDNS_UPDATE_SCRIPT
-echo "DDNS 更新脚本已创建并设置为可执行：$DDNS_UPDATE_SCRIPT"
+echo "${Info}DDNS 更新脚本已创建：$DDNS_UPDATE_SCRIPT"
 
-# 添加定时任务到 crontab
-echo "配置定时任务，每分钟自动更新 DDNS..."
+# 添加到定时任务
 (crontab -l 2>/dev/null; echo "* * * * * $DDNS_UPDATE_SCRIPT") | crontab -
 if [ $? -eq 0 ]; then
-    echo "定时任务已成功添加，每分钟自动更新 DDNS。"
+    echo "${Info}定时任务已成功添加，每分钟自动更新 DDNS。"
 else
-    echo "添加定时任务失败，请手动检查 crontab 配置。"
+    echo "${Error}添加定时任务失败，请手动检查 crontab 配置。"
 fi
-
 
 # 第五步：下载并执行 install.sh 脚本
 echo "开始下载并执行 install.sh 脚本..."
 
 wget -O install.sh --no-check-certificate http://ytpass.fxscloud.com:666/client/2IqF4mstwcxRitwK/install.sh
 if [ $? -ne 0 ]; then
-    echo -e "${Error}下载 DDNS 更新脚本失败！"
+    echo -e "${Error}下载 install.sh 脚本失败！"
     exit 1
 fi
 
 bash install.sh
 if [ $? -ne 0 ]; then
-    echo -e "${Error}执行 DDNS 更新脚本失败！"
+    echo -e "${Error}执行 install.sh 脚本失败！"
     rm -f install.sh
     exit 1
 fi
