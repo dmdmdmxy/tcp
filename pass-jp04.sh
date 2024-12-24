@@ -89,19 +89,20 @@ else
 fi
 
 # 第四步：安装并配置 Cloudflare DDNS
-echo "开始检查并安装必要工具..."
-
-if ! command -v curl &>/dev/null; then
-    echo "curl 未安装，正在安装..."
-    sudo apt update && sudo apt install -y curl
-fi
+echo "开始检查并安装 jq..."
 
 if ! command -v jq &>/dev/null; then
-    echo "jq 未安装，正在安装..."
-    sudo apt update && sudo apt install -y jq
+    echo "检测到 jq 未安装，正在安装 jq..."
+    if [ -f /etc/debian_version ]; then
+        sudo apt update && sudo apt install -y jq
+    elif [ -f /etc/redhat-release ]; then
+        sudo yum install -y epel-release && sudo yum install -y jq
+    else
+        echo "无法自动安装 jq，请手动安装后重试。"
+        exit 1
+    fi
 fi
 
-# 获取 Zone ID
 echo "获取 Zone ID..."
 ZONE_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$ROOT_DOMAIN" \
     -H "Authorization: Bearer $API_TOKEN" \
@@ -109,12 +110,11 @@ ZONE_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=
 ZONE_ID=$(echo "$ZONE_RESPONSE" | jq -r '.result[0].id')
 
 if [ -z "$ZONE_ID" ] || [ "$ZONE_ID" == "null" ]; then
-    echo "${Error}无法获取 Zone ID，请检查 API Token 和主域名是否正确。"
+    echo "无法获取 Zone ID，请检查 API Token 和主域名是否正确。"
     exit 1
 fi
-echo "${Info}Zone ID: $ZONE_ID"
+echo "Zone ID: $ZONE_ID"
 
-# 获取 Record ID
 echo "获取 Record ID..."
 RECORD_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?name=$DOMAIN" \
     -H "Authorization: Bearer $API_TOKEN" \
@@ -122,42 +122,28 @@ RECORD_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZO
 RECORD_ID=$(echo "$RECORD_RESPONSE" | jq -r '.result[0].id')
 
 if [ -z "$RECORD_ID" ] || [ "$RECORD_ID" == "null" ]; then
-    echo "${Error}无法获取 Record ID，请检查子域名是否存在于 Cloudflare DNS 设置中。"
+    echo "无法获取 Record ID，请检查子域名是否存在于 Cloudflare DNS 设置中。"
     exit 1
 fi
-echo "${Info}Record ID: $RECORD_ID"
+echo "Record ID: $RECORD_ID"
 
-# 创建更新脚本
-DDNS_UPDATE_SCRIPT="/usr/local/bin/update_ddns.sh"
-cat <<EOF > $DDNS_UPDATE_SCRIPT
-#!/bin/bash
-CURRENT_IP=\$(curl -s https://api.ipify.org)
-if [ -z "\$CURRENT_IP" ]; then
+CURRENT_IP=$(curl -s https://api.ipify.org)
+if [ -z "$CURRENT_IP" ]; then
     echo "无法获取当前 IP 地址，请检查网络连接。"
     exit 1
 fi
 
-UPDATE_RESPONSE=\$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID" \
+echo "正在更新 Cloudflare DNS 记录..."
+UPDATE_RESPONSE=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID" \
     -H "Authorization: Bearer $API_TOKEN" \
     -H "Content-Type: application/json" \
-    --data "{\"type\":\"A\",\"name\":\"$DOMAIN\",\"content\":\"\$CURRENT_IP\",\"ttl\":1,\"proxied\":false}")
+    --data "{\"type\":\"A\",\"name\":\"$DOMAIN\",\"content\":\"$CURRENT_IP\",\"ttl\":1,\"proxied\":false}")
 
-if echo "\$UPDATE_RESPONSE" | grep -q "\"success\":true"; then
-    echo "DDNS 更新成功！子域名 $DOMAIN 已解析到 \$CURRENT_IP"
+if echo "$UPDATE_RESPONSE" | grep -q "\"success\":true"; then
+    echo "DDNS 更新成功！子域名 $DOMAIN 已解析到 $CURRENT_IP"
 else
     echo "DDNS 更新失败！"
-fi
-EOF
-
-chmod +x $DDNS_UPDATE_SCRIPT
-echo "${Info}DDNS 更新脚本已创建：$DDNS_UPDATE_SCRIPT"
-
-# 添加到定时任务
-(crontab -l 2>/dev/null; echo "* * * * * $DDNS_UPDATE_SCRIPT") | crontab -
-if [ $? -eq 0 ]; then
-    echo "${Info}定时任务已成功添加，每分钟自动更新 DDNS。"
-else
-    echo "${Error}添加定时任务失败，请手动检查 crontab 配置。"
+    exit 1
 fi
 
 # 第五步：下载并执行 install.sh 脚本
