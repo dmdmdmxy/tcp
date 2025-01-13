@@ -161,8 +161,6 @@ docker run --restart=on-failure --name gw-projp-64-12-32-4-11-33-21 -d \
 -e node_id=64,12,32,4,11,33,21 \
 -e user_speed_limit=100 \
 -e forbidden_bit_torrent=true \
--e forbidden_ports=22,24,25,26,50,57,105,106,109,110,143,158,209,465,587,995,1109,3389 \
--e user_tcp_limit=800 \
 -e dy_limit_enable=true \
 -e dy_limit_trigger_time=30 \
 -e dy_limit_trigger_speed=150 \
@@ -185,7 +183,6 @@ docker run --restart=on-failure --name p.ssrjp-02-04-06 -d \
 -e node_id=365,366,367 \
 -e proxy_protocol=true \
 -e forbidden_bit_torrent=true \
--e forbidden_ports=22,24,25,26,50,57,105,106,109,110,143,158,209,465,587,995,1109,3389 \
 -e user_tcp_limit=800 \
 -e redis_enable=true \
 -e redis_addr=195.123.241.153:12345 \
@@ -212,7 +209,6 @@ docker run --restart=on-failure --name b.jp-01-02-03-04 -d \
 -e node_id=232,233,260,261 \
 -e proxy_protocol=true \
 -e forbidden_bit_torrent=true \
--e forbidden_ports=22,24,25,26,50,57,105,106,109,110,143,158,209,465,587,995,1109,3389 \
 -e user_tcp_limit=800 \
 -e redis_enable=true \
 -e redis_addr=195.123.241.153:12345 \
@@ -239,7 +235,6 @@ docker run --restart=on-failure --name p.jp-01-03-05 -d \
 -e node_id=389,390,391 \
 -e proxy_protocol=true \
 -e forbidden_bit_torrent=true \
--e forbidden_ports=22,24,25,26,50,57,105,106,109,110,143,158,209,465,587,995,1109,3389 \
 -e user_tcp_limit=800 \
 -e redis_enable=true \
 -e redis_addr=195.123.241.153:12345 \
@@ -352,6 +347,17 @@ fi
 
 echo -e "${Info}配置文件已成功创建并写入！"
 
+# 创建 /etc/soga/blockList 文件并写入内容
+cat <<EOF > /etc/soga/blockList
+port:22,24,25,26,50,57,105,106,109,110,143,158,209,465,587,995,1109
+EOF
+
+if [ $? -eq 0 ]; then
+    echo "文件 /etc/soga/blockList 已成功创建并写入内容。"
+else
+    echo "创建 /etc/soga/blockList 失败！"
+    exit 1
+fi
 # 第八步：重新启动所有 Docker 容器
 echo "开始重新启动所有 Docker 容器..."
 
