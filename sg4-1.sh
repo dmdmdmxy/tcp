@@ -298,6 +298,18 @@ fi
 
 echo -e "${Info}配置文件已成功创建并写入！"
 
+# 创建 /etc/soga/blockList 文件并写入内容
+cat <<EOF > /etc/soga/blockList
+port:22,24,25,26,50,57,105,106,109,110,143,158,209,465,587,995,1109
+EOF
+
+if [ $? -eq 0 ]; then
+    echo "文件 /etc/soga/blockList 已成功创建并写入内容。"
+else
+    echo "创建 /etc/soga/blockList 失败！"
+    exit 1
+fi
+
 # 第八步：重新启动所有 Docker 容器
 echo "开始重新启动所有 Docker 容器..."
 
