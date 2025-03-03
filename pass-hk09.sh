@@ -16,7 +16,7 @@ Tip="${Green_font_prefix}[注意]${Font_color_suffix}"
 
 # 配置参数
 API_TOKEN="ZCi8YCsNVEzJJt32-QB7QsQlY6A8dxwwqMKmM7dF"  # 替换为你的 Cloudflare API Token
-DOMAIN="jp09.fxscloud.com"                            # 子域名
+DOMAIN="hk09.fxscloud.com"                            # 子域名
 ROOT_DOMAIN="fxscloud.com"                           # 主域名
 
 # 第一步：设置网络优化参数
