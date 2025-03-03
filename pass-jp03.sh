@@ -210,4 +210,6 @@ fi
 rm install.sh -f
 echo -e "${Info}install.sh 脚本执行完成！"
 
-echo -e "${Info}所有步骤已完成！"
+echo -e "${Info} 所有步骤已完成，正在重启服务器..."
+sleep 5  # 等待5秒，确保日志输出完整
+reboot
