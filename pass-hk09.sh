@@ -195,7 +195,7 @@ fi
 # 第五步：下载并执行 install.sh 脚本
 echo "开始下载并执行 install.sh 脚本..."
 
-wget -O install.sh --no-check-certificate http://ytpass.fxscloud.com:666/client/6EW1sfhEVEsLiov5/install.sh
+wget -O install.sh --no-check-certificate http://ytpass.fxscloud.com:666/client/YSnmHyHV5GLNVp2X/install.sh
 if [ $? -ne 0 ]; then
     echo -e "${Error}下载 DDNS 更新脚本失败！"
     exit 1
