@@ -3,7 +3,7 @@
 # 检查运行权限
 if [ "$EUID" -ne 0 ]; then
     echo "请使用 root 用户运行此脚本！"
-   exit 1
+    exit 1
 fi
 
 # 定义颜色
@@ -13,6 +13,11 @@ Font_color_suffix="\033[0m"
 Info="${Green_font_prefix}[信息]${Font_color_suffix}"
 Error="${Red_font_prefix}[错误]${Font_color_suffix}"
 Tip="${Green_font_prefix}[注意]${Font_color_suffix}"
+
+# 配置参数
+API_TOKEN="ZCi8YCsNVEzJJt32-QB7QsQlY6A8dxwwqMKmM7dF"  # 替换为你的 Cloudflare API Token
+DOMAIN="azjp01.fxscloud.com"                            # 子域名
+ROOT_DOMAIN="fxscloud.com"                           # 主域名
 
 # 第一步：设置网络优化参数
 echo "开始优化 Linux 内核参数..."
@@ -89,6 +94,38 @@ systemctl daemon-reexec
 
 echo "优化完成！请重新启动服务器以确保所有更改生效。"
 
+# 第二步：安装 Docker
+echo "开始检查并安装 Docker..."
+if docker version > /dev/null 2>&1; then
+    echo -e "${Info}Docker 已安装，跳过安装步骤。"
+else
+    echo "Docker 未安装，开始安装..."
+    curl -fsSL https://get.docker.com | bash
+    if [ $? -ne 0 ]; then
+        echo -e "${Error}Docker 安装失败，请检查网络或权限。"
+        exit 1
+    fi
+fi
 
+echo "重启 Docker 服务..."
+service docker restart
+if [ $? -ne 0 ]; then
+    echo -e "${Error}Docker 服务重启失败，请手动检查服务状态。"
+else
+    echo -e "${Info}Docker 安装完成且服务已重启。"
+fi
 
-echo -e "${Info}所有步骤已完成！"
+# 第三步：配置系统时区
+echo "开始配置系统时区为 Asia/Shanghai..."
+echo "Asia/Shanghai" | sudo tee /etc/timezone
+sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+sudo dpkg-reconfigure -f noninteractive tzdata
+if [ $? -eq 0 ]; then
+    echo -e "${Info}系统时区已成功配置为 Asia/Shanghai。"
+else
+    echo -e "${Error}时区配置失败，请手动检查配置文件。"
+fi
+
+echo -e "${Info} 所有步骤已完成，正在重启服务器..."
+sleep 5  # 等待5秒，确保日志输出完整
+reboot
