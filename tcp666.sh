@@ -14,10 +14,6 @@ Info="${Green_font_prefix}[信息]${Font_color_suffix}"
 Error="${Red_font_prefix}[错误]${Font_color_suffix}"
 Tip="${Green_font_prefix}[注意]${Font_color_suffix}"
 
-# 配置参数
-API_TOKEN="ZCi8YCsNVEzJJt32-QB7QsQlY6A8dxwwqMKmM7dF"  # 替换为你的 Cloudflare API Token
-DOMAIN="3.aaa-jp02.yunti.best"                            # 子域名
-ROOT_DOMAIN="yunti.best"                           # 主域名
 
 # 第一步：设置网络优化参数
 echo "开始优化 Linux 内核参数..."
