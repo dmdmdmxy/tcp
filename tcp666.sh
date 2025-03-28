@@ -14,7 +14,6 @@ Info="${Green_font_prefix}[信息]${Font_color_suffix}"
 Error="${Red_font_prefix}[错误]${Font_color_suffix}"
 Tip="${Green_font_prefix}[注意]${Font_color_suffix}"
 
-
 # 第一步：设置网络优化参数
 echo "开始优化 Linux 内核参数..."
 
@@ -88,8 +87,7 @@ EOF
 # 立即生效 systemd 配置
 systemctl daemon-reexec
 
-echo "优化完成！请重新启动服务器以确保所有更改生效。"
-
+echo "优化完成！"
 
 # 第三步：配置系统时区
 echo "开始配置系统时区为 Asia/Shanghai..."
@@ -102,6 +100,5 @@ else
     echo -e "${Error}时区配置失败，请手动检查配置文件。"
 fi
 
-
-
-echo -e "${Info}所有步骤已完成！"
+echo -e "${Info}所有步骤已完成！正在重启系统..."
+reboot
