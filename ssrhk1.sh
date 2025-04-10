@@ -188,26 +188,25 @@ fi
 echo "开始运行多个 Docker 容器..."
 
 # 运行第一个容器
-docker run --restart=on-failure --name gw-basicjp-35-38 -d \
+docker run --restart=on-failure --name gw-ssr-basichk01 -d \
 -v /etc/soga/:/etc/soga/ --network host \
--e soga_key=Ox2YKGI6WiUBNXr1ZD2Ev0Y3HrLbev9v \
 -e type=sspanel-uim \
--e server_type=v2ray \
+-e server_type=ssr \
+-e soga_key=JGD4m9BkddmjLqL6AZVqEhvNkf0yGTEs \
 -e api=webapi \
--e webapi_url=https://qwertyuiopzxcvbnm.icu/ \
+-e webapi_url=https://qwertyuiopzxcvbnm.icu \
 -e webapi_key=qwer123 \
--e node_id=35,38 \
--e user_tcp_limit=1000 \
+-e forbidden_bit_torrent=true \
+-e user_tcp_limit=800 \
+-e node_id=117 \
 -e proxy_protocol=true \
 -e user_speed_limit=100 \
--e forbidden_bit_torrent=true \
 -e dy_limit_enable=true \
 -e dy_limit_trigger_time=30 \
--e dy_limit_trigger_speed=80 \
+-e dy_limit_trigger_speed=100 \
 -e dy_limit_speed=50 \
 -e dy_limit_time=600 \
 -e dy_limit_duration=19:00-24:00,00:00-02:00 \
--e dy_limit_white_user_id=3 \
 vaxilu/soga
 
 echo -e "${Info}所有 Docker 容器已成功启动！"
