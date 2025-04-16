@@ -59,30 +59,33 @@ net.mptcp.enabled = 1
 EOF
 
 # 立即生效
-sysctl -p
-
-echo "内核参数优化完成！"
+if sysctl -p; then
+    echo "内核参数优化完成！"
+else
+    echo -e "${Error}内核参数优化加载失败！"
+    exit 1
+fi
 
 # 2. 调整 ulimit 文件描述符限制
 echo "调整文件描述符限制..."
-cat <<EOF >> /etc/security/limits.conf
-* soft nofile 1048576
-* hard nofile 1048576
-* soft nproc 1048576
-* hard nproc 1048576
-EOF
+{
+    echo "* soft nofile 1048576"
+    echo "* hard nofile 1048576"
+    echo "* soft nproc 1048576"
+    echo "* hard nproc 1048576"
+} >> /etc/security/limits.conf
 
 # 3. 调整 systemd 资源限制
 echo "调整 systemd 资源限制..."
-cat <<EOF >> /etc/systemd/system.conf
-DefaultLimitNOFILE=1048576
-DefaultLimitNPROC=1048576
-EOF
+{
+    echo "DefaultLimitNOFILE=1048576"
+    echo "DefaultLimitNPROC=1048576"
+} >> /etc/systemd/system.conf
 
-cat <<EOF >> /etc/systemd/user.conf
-DefaultLimitNOFILE=1048576
-DefaultLimitNPROC=1048576
-EOF
+{
+    echo "DefaultLimitNOFILE=1048576"
+    echo "DefaultLimitNPROC=1048576"
+} >> /etc/systemd/user.conf
 
 # 立即生效 systemd 配置
 systemctl daemon-reexec
@@ -91,9 +94,10 @@ echo "优化完成！"
 
 # 第三步：配置系统时区
 echo "开始配置系统时区为 Asia/Shanghai..."
-echo "Asia/Shanghai" | sudo tee /etc/timezone
-sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-sudo dpkg-reconfigure -f noninteractive tzdata
+echo "Asia/Shanghai" > /etc/timezone
+ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+dpkg-reconfigure -f noninteractive tzdata
+
 if [ $? -eq 0 ]; then
     echo -e "${Info}系统时区已成功配置为 Asia/Shanghai。"
 else
@@ -101,4 +105,10 @@ else
 fi
 
 echo -e "${Info}所有步骤已完成！正在重启系统..."
-reboot
+read -p "你确定要重启系统吗？ (y/n) " -n 1 -r
+echo    # 在同一行后换行
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    reboot
+else
+    echo "重启已取消。"
+fi
