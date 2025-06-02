@@ -112,7 +112,6 @@ else
 fi
 
 # 第四步：Cloudflare DDNS 更新逻辑
-echo "开始检查并安装 jq..."
 
 if ! command -v jq &>/dev/null; then
     echo "检测到 jq 未安装，正在安装 jq..."
