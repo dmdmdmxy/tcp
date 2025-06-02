@@ -26,6 +26,19 @@ function log() {
     echo -e "$(date '+%Y-%m-%d %H:%M:%S') $1" | tee -a "$LOG_FILE"
 }
 
+# 检查并安装 jq
+if ! command -v jq &>/dev/null; then
+    log "${Info} 检测到 jq 未安装，正在安装 jq..."
+    if [ -f /etc/debian_version ]; then
+        sudo apt update && sudo apt install -y jq
+    elif [ -f /etc/redhat-release ]; then
+        sudo yum install -y epel-release && sudo yum install -y jq
+    else
+        log "${Error} 无法自动安装 jq，请手动安装后重试。"
+        exit 1
+    fi
+fi
+
 # 第一步：设置网络优化参数
 echo "开始优化 Linux 内核参数..."
 
