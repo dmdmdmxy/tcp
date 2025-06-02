@@ -25,6 +25,7 @@ LOG_FILE="/var/log/cloudflare_ddns.log"               # 日志文件
 function log() {
     echo -e "$(date '+%Y-%m-%d %H:%M:%S') $1" | tee -a "$LOG_FILE"
 }
+
 # 检查并安装 jq
 if ! command -v jq &>/dev/null; then
     log "${Info} 检测到 jq 未安装，正在安装 jq..."
@@ -37,6 +38,7 @@ if ! command -v jq &>/dev/null; then
         exit 1
     fi
 fi
+
 # 第一步：设置网络优化参数
 echo "开始优化 Linux 内核参数..."
 
