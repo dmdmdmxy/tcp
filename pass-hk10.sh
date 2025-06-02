@@ -112,6 +112,19 @@ else
 fi
 
 # 第四步：Cloudflare DDNS 更新逻辑
+echo "开始检查并安装 jq..."
+
+if ! command -v jq &>/dev/null; then
+    echo "检测到 jq 未安装，正在安装 jq..."
+    if [ -f /etc/debian_version ]; then
+        sudo apt update && sudo apt install -y jq
+    elif [ -f /etc/redhat-release ]; then
+        sudo yum install -y epel-release && sudo yum install -y jq
+    else
+        echo "无法自动安装 jq，请手动安装后重试。"
+        exit 1
+    fi
+
 function update_ddns() {
     # 获取当前公网 IP
     CURRENT_IP=$(curl -s https://api.ipify.org)
