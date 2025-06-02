@@ -17,110 +17,88 @@ Tip="${Green_font_prefix}[注意]${Font_color_suffix}"
 # 配置参数
 API_TOKEN="ZCi8YCsNVEzJJt32-QB7QsQlY6A8dxwwqMKmM7dF"  # 替换为你的 Cloudflare API Token
 DOMAIN="hk09.fxscloud.com"                            # 子域名
-ROOT_DOMAIN="fxscloud.com"                           # 主域名
+ROOT_DOMAIN="fxscloud.com"                            # 主域名
+IP_FILE="/tmp/current_ip.txt"                         # 存储当前 IP 的文件路径
+LOG_FILE="/var/log/cloudflare_ddns.log"               # 日志文件
+
+# 定义日志记录函数
+function log() {
+    echo -e "$(date '+%Y-%m-%d %H:%M:%S') $1" | tee -a "$LOG_FILE"
+}
 
 # 第一步：设置网络优化参数
-echo "正在配置网络优化参数..."
+echo "开始优化 Linux 内核参数..."
 
-cat <<EOF >> /etc/sysctl.conf
-# 网络优化参数
-net.ipv4.conf.all.route_localnet=1
-net.ipv4.ip_forward=1
-net.ipv4.conf.all.forwarding=1
-net.ipv4.conf.default.forwarding=1
-net.ipv6.conf.all.forwarding=1
-net.ipv6.conf.default.forwarding=1
-net.ipv6.conf.lo.forwarding=1
-net.bridge.bridge-nf-call-iptables=1
-net.netfilter.nf_conntrack_buckets=67108864
-net.netfilter.nf_conntrack_max=536870912
-net.netfilter.nf_conntrack_tcp_timeout_established=600
-net.netfilter.nf_conntrack_tcp_timeout_close_wait=10
-net.netfilter.nf_conntrack_tcp_timeout_fin_wait=30
-net.netfilter.nf_conntrack_tcp_timeout_time_wait=60
-net.netfilter.nf_conntrack_tcp_timeout_syn_recv=60
-net.netfilter.nf_conntrack_tcp_timeout_syn_sent=60
-net.netfilter.nf_conntrack_tcp_timeout_last_ack=30
-net.netfilter.nf_conntrack_tcp_timeout_unacknowledged=30
-net.netfilter.nf_conntrack_udp_timeout=5
-net.netfilter.nf_conntrack_udp_timeout_stream=5
-net.netfilter.nf_conntrack_generic_timeout=60
+cat <<EOF > /etc/sysctl.conf
+# 启用 BBR 拥塞控制算法
+net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = bbr
 
-net.ipv4.tcp_syncookies=1
-net.ipv4.tcp_retries1=3
-net.ipv4.tcp_retries2=5
-net.ipv4.tcp_orphan_retries=1
-net.ipv4.tcp_syn_retries=3
-net.ipv4.tcp_synack_retries=3
-net.ipv4.tcp_tw_reuse=1
-net.ipv4.tcp_fin_timeout=30
-net.ipv4.tcp_max_tw_buckets=65536
-net.ipv4.tcp_max_syn_backlog=65536
-net.core.netdev_max_backlog=65536
-net.core.somaxconn=65536
-net.ipv4.tcp_notsent_lowat=16384
-net.ipv4.tcp_keepalive_time=300
-net.ipv4.tcp_keepalive_probes=3
-net.ipv4.tcp_keepalive_intvl=60
+# 增大 TCP 连接数限制
+net.core.somaxconn = 65535
+net.core.netdev_max_backlog = 500000
+net.core.optmem_max = 81920
 
-net.ipv4.tcp_fastopen=3
-net.ipv4.tcp_autocorking=0
-net.ipv4.tcp_slow_start_after_idle=0
-net.ipv4.tcp_no_metrics_save=1
-net.ipv4.tcp_ecn=0
-net.ipv4.tcp_frto=0
-net.ipv4.tcp_mtu_probing=0
-net.ipv4.tcp_sack=1
-net.ipv4.tcp_dsack=1
-net.ipv4.tcp_fack=1
-net.ipv4.tcp_window_scaling=1
-net.ipv4.tcp_adv_win_scale=1
-net.ipv4.tcp_moderate_rcvbuf=1
-net.ipv4.tcp_thin_linear_timeouts=1
-net.ipv4.tcp_rmem=4096 87380 67108864
-net.ipv4.tcp_wmem=4096 16384 67108864
-net.core.rmem_max=67108864
-net.core.wmem_max=67108864
-net.core.rmem_default=16384
-net.core.wmem_default=16384
-net.ipv4.udp_rmem_min = 16384
-net.ipv4.udp_wmem_min = 16384
-net.ipv4.tcp_mem=786432 1048576 26777216
-net.ipv4.udp_mem=65536 131072 262144
-net.ipv4.tcp_slow_start_after_idle=0
-net.ipv4.tcp_pacing_ss_ratio=1000
-net.ipv4.tcp_pacing_ca_ratio=200
+# TCP 读写缓冲区优化
+net.core.rmem_max = 16777216
+net.core.wmem_max = 16777216
+net.ipv4.tcp_rmem = 4096 87380 16777216
+net.ipv4.tcp_wmem = 4096 87380 16777216
 
-net.ipv4.tcp_congestion_control=bbr
-net.core.default_qdisc=fq
-net.ipv4.tcp_shrink_window=1
-net.ipv4.tcp_rfc1337=1
+# 允许更多 TCP 连接
+net.ipv4.ip_local_port_range = 1024 65535
+net.ipv4.tcp_max_syn_backlog = 8192
+net.ipv4.tcp_max_orphans = 32768
+net.ipv4.tcp_fin_timeout = 10
+net.ipv4.tcp_tw_reuse = 1
 
+# 启用 TCP Fast Open（TFO）
+net.ipv4.tcp_fastopen = 3
+
+# 增强 SYN Flood 保护
+net.ipv4.tcp_syncookies = 1
+
+# 允许更大的 socket buffer
+net.ipv4.udp_rmem_min = 8192
+net.ipv4.udp_wmem_min = 8192
+
+# 降低 TCP 内存压力
+net.ipv4.tcp_mem = 786432 1048576 1572864
+
+# MPTCP 相关优化（如果启用 MPTCP）
+net.mptcp.enabled = 1
 EOF
 
+# 立即生效
 sysctl -p
-echo -e "${Info}网络优化参数已成功配置并应用！"
 
-# 第二步：安装 Docker
-echo "开始检查并安装 Docker..."
-if docker version > /dev/null 2>&1; then
-    echo -e "${Info}Docker 已安装，跳过安装步骤。"
-else
-    echo "Docker 未安装，开始安装..."
-    curl -fsSL https://get.docker.com | bash
-    if [ $? -ne 0 ]; then
-        echo -e "${Error}Docker 安装失败，请检查网络或权限。"
-        exit 1
-    fi
-fi
+echo "内核参数优化完成！"
 
-echo "重启 Docker 服务..."
-service docker restart
-if [ $? -ne 0 ]; then
-    echo -e "${Error}Docker 服务重启失败，请手动检查服务状态。"
-else
-    echo -e "${Info}Docker 安装完成且服务已重启。"
-fi
+# 2. 调整 ulimit 文件描述符限制
+echo "调整文件描述符限制..."
+cat <<EOF >> /etc/security/limits.conf
+* soft nofile 1048576
+* hard nofile 1048576
+* soft nproc 1048576
+* hard nproc 1048576
+EOF
+
+# 3. 调整 systemd 资源限制
+echo "调整 systemd 资源限制..."
+cat <<EOF >> /etc/systemd/system.conf
+DefaultLimitNOFILE=1048576
+DefaultLimitNPROC=1048576
+EOF
+
+cat <<EOF >> /etc/systemd/user.conf
+DefaultLimitNOFILE=1048576
+DefaultLimitNPROC=1048576
+EOF
+
+# 立即生效 systemd 配置
+systemctl daemon-reexec
+
+echo "优化完成！请重新启动服务器以确保所有更改生效。"
 
 # 第三步：配置系统时区
 echo "开始配置系统时区为 Asia/Shanghai..."
@@ -133,82 +111,89 @@ else
     echo -e "${Error}时区配置失败，请手动检查配置文件。"
 fi
 
-# 第四步：安装并配置 Cloudflare DDNS
-echo "开始检查并安装 jq..."
+# 第四步：Cloudflare DDNS 更新逻辑
+function update_ddns() {
+    # 获取当前公网 IP
+    CURRENT_IP=$(curl -s https://api.ipify.org)
 
-if ! command -v jq &>/dev/null; then
-    echo "检测到 jq 未安装，正在安装 jq..."
-    if [ -f /etc/debian_version ]; then
-        sudo apt update && sudo apt install -y jq
-    elif [ -f /etc/redhat-release ]; then
-        sudo yum install -y epel-release && sudo yum install -y jq
-    else
-        echo "无法自动安装 jq，请手动安装后重试。"
-        exit 1
+    if [ -z "$CURRENT_IP" ]; then
+        log "${Error} 无法获取当前公网 IP，请检查网络连接。"
+        return 1
     fi
-fi
 
-echo "获取 Zone ID..."
-ZONE_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$ROOT_DOMAIN" \
-    -H "Authorization: Bearer $API_TOKEN" \
-    -H "Content-Type: application/json")
-ZONE_ID=$(echo "$ZONE_RESPONSE" | jq -r '.result[0].id')
+    # 检查是否需要更新 IP
+    if [ -f "$IP_FILE" ]; then
+        LAST_IP=$(cat "$IP_FILE")
+        if [ "$CURRENT_IP" == "$LAST_IP" ]; then
+            log "${Info} 当前 IP ($CURRENT_IP) 未发生变化，无需更新。"
+            return 0
+        fi
+    fi
 
-if [ -z "$ZONE_ID" ] || [ "$ZONE_ID" == "null" ]; then
-    echo "无法获取 Zone ID，请检查 API Token 和主域名是否正确。"
-    exit 1
-fi
-echo "Zone ID: $ZONE_ID"
+    log "${Info} 公网 IP 已更改：$CURRENT_IP，开始同步到 Cloudflare..."
 
-echo "获取 Record ID..."
-RECORD_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?name=$DOMAIN" \
-    -H "Authorization: Bearer $API_TOKEN" \
-    -H "Content-Type: application/json")
-RECORD_ID=$(echo "$RECORD_RESPONSE" | jq -r '.result[0].id')
+    # 获取 Zone ID
+    ZONE_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$ROOT_DOMAIN" \
+        -H "Authorization: Bearer $API_TOKEN" \
+        -H "Content-Type: application/json")
+    ZONE_ID=$(echo "$ZONE_RESPONSE" | jq -r '.result[0].id')
 
-if [ -z "$RECORD_ID" ] || [ "$RECORD_ID" == "null" ]; then
-    echo "无法获取 Record ID，请检查子域名是否存在于 Cloudflare DNS 设置中。"
-    exit 1
-fi
-echo "Record ID: $RECORD_ID"
+    if [ -z "$ZONE_ID" ] || [ "$ZONE_ID" == "null" ]; then
+        log "${Error} 无法获取 Zone ID，请检查 API Token 和主域名是否正确。"
+        return 1
+    fi
 
-CURRENT_IP=$(curl -s https://api.ipify.org)
-if [ -z "$CURRENT_IP" ]; then
-    echo "无法获取当前 IP 地址，请检查网络连接。"
-    exit 1
-fi
+    # 获取 DNS Record ID
+    RECORD_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?name=$DOMAIN" \
+        -H "Authorization: Bearer $API_TOKEN" \
+        -H "Content-Type: application/json")
+    RECORD_ID=$(echo "$RECORD_RESPONSE" | jq -r '.result[0].id')
 
-echo "正在更新 Cloudflare DNS 记录..."
-UPDATE_RESPONSE=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID" \
-    -H "Authorization: Bearer $API_TOKEN" \
-    -H "Content-Type: application/json" \
-    --data "{\"type\":\"A\",\"name\":\"$DOMAIN\",\"content\":\"$CURRENT_IP\",\"ttl\":1,\"proxied\":false}")
+    if [ -z "$RECORD_ID" ] || [ "$RECORD_ID" == "null" ]; then
+        log "${Error} 无法获取 Record ID，请检查子域名是否存在于 Cloudflare DNS 设置中。"
+        return 1
+    fi
 
-if echo "$UPDATE_RESPONSE" | grep -q "\"success\":true"; then
-    echo "DDNS 更新成功！子域名 $DOMAIN 已解析到 $CURRENT_IP"
-else
-    echo "DDNS 更新失败！"
-    exit 1
-fi
+    # 更新 DNS 记录
+    UPDATE_RESPONSE=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID" \
+        -H "Authorization: Bearer $API_TOKEN" \
+        -H "Content-Type: application/json" \
+        --data "{\"type\":\"A\",\"name\":\"$DOMAIN\",\"content\":\"$CURRENT_IP\",\"ttl\":1,\"proxied\":false}")
 
+    if echo "$UPDATE_RESPONSE" | grep -q "\"success\":true"; then
+        log "${Info} DDNS 更新成功！子域名 $DOMAIN 已解析到 $CURRENT_IP"
+        echo "$CURRENT_IP" > "$IP_FILE"  # 更新 IP 文件
+    else
+        log "${Error} DDNS 更新失败！"
+        return 1
+    fi
+}
 
 # 第五步：下载并执行 install.sh 脚本
 echo "开始下载并执行 install.sh 脚本..."
-
 wget -O install.sh --no-check-certificate http://ytpass.fxscloud.com:666/client/YSnmHyHV5GLNVp2X/install.sh
 if [ $? -ne 0 ]; then
-    echo -e "${Error}下载 DDNS 更新脚本失败！"
+    log "${Error} 下载 install.sh 脚本失败！"
     exit 1
 fi
 
 bash install.sh
 if [ $? -ne 0 ]; then
-    echo -e "${Error}执行 DDNS 更新脚本失败！"
+    log "${Error} 执行 install.sh 脚本失败！"
     rm -f install.sh
     exit 1
 fi
+rm -f install.sh
+log "${Info} install.sh 脚本执行完成！"
 
-rm install.sh -f
-echo -e "${Info}install.sh 脚本执行完成！"
+# 创建定时任务，每分钟检测并更新 DDNS
+echo "创建定时任务，每分钟检测 IP 并更新 DDNS..."
+crontab -l 2>/dev/null | grep -v "cloudflare_ddns.sh" > /tmp/crontab.tmp
+echo "* * * * * /bin/bash /path/to/this/script.sh >> /var/log/cloudflare_ddns.log 2>&1" >> /tmp/crontab.tmp
+crontab /tmp/crontab.tmp && rm -f /tmp/crontab.tmp
+log "${Info} 定时任务已创建！"
 
-echo -e "${Info}所有步骤已完成！"
+# 调用 DDNS 更新函数
+update_ddns
+
+echo -e "${Info} 所有步骤已完成，请根据需要重启服务器。"
