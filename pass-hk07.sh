@@ -201,10 +201,12 @@ log "${Info} install.sh 脚本执行完成！"
 
 # 创建定时任务，每分钟检测并更新 DDNS
 echo "创建定时任务，每分钟检测 IP 并更新 DDNS..."
-crontab -l 2>/dev/null | grep -v "cloudflare_ddns.sh" > /tmp/crontab.tmp
-echo "* * * * * /bin/bash /path/to/this/script.sh >> /var/log/cloudflare_ddns.log 2>&1" >> /tmp/crontab.tmp
+SCRIPT_PATH="$(realpath "$0")"
+crontab -l 2>/dev/null | grep -v "$SCRIPT_PATH" > /tmp/crontab.tmp
+echo "* * * * * /bin/bash $SCRIPT_PATH >> /var/log/cloudflare_ddns.log 2>&1" >> /tmp/crontab.tmp
 crontab /tmp/crontab.tmp && rm -f /tmp/crontab.tmp
-log "${Info} 定时任务已创建！"
+log "${Info} 定时任务已创建：每分钟执行 $SCRIPT_PATH"
+
 
 # 调用 DDNS 更新函数
 update_ddns
