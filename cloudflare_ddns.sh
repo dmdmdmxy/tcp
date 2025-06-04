@@ -2,8 +2,8 @@
 
 # ========= 配置信息 =========
 CF_API_TOKEN="ZCi8YCsNVEzJJt32-QB7QsQlY6A8dxwwqMKmM7dF"
-CF_ZONE_ID="你的Zone ID"
-CF_RECORD_ID="你的记录ID"
+CF_ZONE_ID="724afd397527f4bda8e4d73e7dac1bca"
+CF_RECORD_ID="400fbfad82e485b73effad8d7d533e7f"
 CF_DOMAIN_NAME="jp01.fxscloud.com"
 # ============================
 
