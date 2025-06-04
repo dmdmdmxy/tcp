@@ -49,7 +49,7 @@ update_ddns() {
 # ========= 自动保存自身并重新执行（若通过管道运行） =========
 if [[ "$0" == "/dev/fd/"* || "$0" == "/proc/"* ]]; then
     log "检测到脚本是通过管道方式运行，将保存为 /root/cloudflare_ddns.sh..."
-    curl -fsSL https://raw.githubusercontent.com/dmdmdmxy/tcp/refs/heads/main/cloudflare_ddns.sh -o /root/cloudflare_ddns.sh
+    curl -fsSL https://raw.githubusercontent.com/dmdmdmxy/tcp/refs/heads/main/cloudflare_ddns2.sh -o /root/cloudflare_ddns2.sh
     chmod +x /root/cloudflare_ddns.sh
     /bin/bash /root/cloudflare_ddns.sh
     exit $?
