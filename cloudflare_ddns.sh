@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # ========= 配置信息 =========
-CF_API_TOKEN="ZCi8YCsNVEzJJt32-QB7QsQlY6A8dxwwqMKmM7dF"
-CF_ZONE_ID="724afd397527f4bda8e4d73e7dac1bca"
-CF_RECORD_ID="400fbfad82e485b73effad8d7d533e7f"
-CF_DOMAIN_NAME="jp01.fxscloud.com"
+CF_API_TOKEN="ZCi8YCsNVEzJJt32-QB7QsQlY6A8dxwwqMKmM7dF"  # Cloudflare API Token
+CF_ZONE_ID="724afd397527f4bda8e4d73e7dac1bca"            # Zone ID
+CF_RECORD_ID="400fbfad82e485b73effad8d7d533e7f"          # DNS记录ID
+CF_DOMAIN_NAME="jp01.fxscloud.com"                       # 子域名
 # ============================
 
 log() {
@@ -16,13 +16,15 @@ err() {
 }
 
 get_ip() {
-    curl -fsSL https://api64.ipify.org || curl -fsSL https://ipinfo.io/ip
+    # 只获取 IPv4 地址
+    curl -4 -fsSL https://api64.ipify.org || curl -4 -fsSL https://ipinfo.io/ip
 }
 
 update_ddns() {
     local current_ip=$(get_ip)
-    [[ -z "$current_ip" ]] && err "获取公网 IP 失败" && return 1
+    [[ -z "$current_ip" ]] && err "获取公网 IPv4 地址失败" && return 1
 
+    # 查询当前 DNS 记录中的 IP 地址
     local record_ip=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records/$CF_RECORD_ID" \
         -H "Authorization: Bearer $CF_API_TOKEN" \
         -H "Content-Type: application/json" | grep -oE '"content":"[^"]+"' | cut -d'"' -f4)
@@ -34,7 +36,6 @@ update_ddns() {
         local result=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records/$CF_RECORD_ID" \
             -H "Authorization: Bearer $CF_API_TOKEN" \
             -H "Content-Type: application/json" \
-            
             --data "{\"type\":\"A\",\"name\":\"$CF_DOMAIN_NAME\",\"content\":\"$current_ip\",\"ttl\":120,\"proxied\":false}")
 
         if echo "$result" | grep -q "\"success\":true"; then
