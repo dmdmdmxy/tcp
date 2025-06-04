@@ -3,7 +3,7 @@
 # ========= 配置信息 =========
 CF_API_TOKEN="ZCi8YCsNVEzJJt32-QB7QsQlY6A8dxwwqMKmM7dF"  # Cloudflare API Token
 CF_ZONE_ID="724afd397527f4bda8e4d73e7dac1bca"            # Zone ID
-CF_RECORD_ID="400fbfad82e485b73effad8d7d533e7f"          # DNS记录ID
+CF_RECORD_ID="9f64625dd7170e02098fcc3e7379bf71"          # DNS记录ID
 CF_DOMAIN_NAME="jp01.fxscloud.com"                       # 子域名
 # ============================
 
