@@ -94,22 +94,588 @@ cat <<EOF >> /etc/security/limits.conf
 * hard nproc 1048576
 EOF
 
-# 3. 调整 systemd 资源限制
-echo "调整 systemd 资源限制..."
-cat <<EOF >> /etc/systemd/system.conf
-DefaultLimitNOFILE=1048576
-DefaultLimitNPROC=1048576
-EOF
-
-cat <<EOF >> /etc/systemd/user.conf
-DefaultLimitNOFILE=1048576
-DefaultLimitNPROC=1048576
-EOF
-
 # 立即生效 systemd 配置
 systemctl daemon-reexec
 
 echo "优化完成！请重新启动服务器以确保所有更改生效。"
+
+# 第二步：安装 Docker
+echo "开始检查并安装 Docker..."
+if docker version > /dev/null 2>&1; then
+    echo -e "${Info}Docker 已安装，跳过安装步骤。"
+else
+    echo "Docker 未安装，开始安装..."
+    curl -fsSL https://get.docker.com | bash
+    if [ $? -ne 0 ]; then
+        echo -e "${Error}Docker 安装失败，请检查网络或权限。"
+        exit 1
+    fi
+fi
+
+echo "重启 Docker 服务..."
+service docker restart
+if [ $? -ne 0 ]; then
+    echo -e "${Error}Docker 服务重启失败，请手动检查服务状态。"
+else
+    echo -e "${Info}Docker 安装完成且服务已重启。"
+fi
+
+# 第五步：运行多个 Docker 容器
+echo "开始运行多个 Docker 容器..."
+
+# 运行第一个容器
+docker run --restart=on-failure --name gw-projp-64-12-32-4-11-33-21 -d \
+-v /etc/soga/:/etc/soga/ --network host \
+-e soga_key=Ox2YKGI6WiUBNXr1ZD2Ev0Y3HrLbev9v \
+-e type=sspanel-uim \
+-e server_type=v2ray \
+-e api=webapi \
+-e webapi_url=https://qwertyuiopzxcvbnm.icu/ \
+-e webapi_key=qwer123 \
+-e node_id=64,12,32,4,11,33,21 \
+-e user_tcp_limit=200 \
+-e proxy_protocol=true \
+-e user_speed_limit=500 \
+-e forbidden_bit_torrent=true \
+-e dy_limit_enable=true \
+-e dy_limit_trigger_time=30 \
+-e dy_limit_trigger_speed=150 \
+-e dy_limit_speed=80 \
+-e dy_limit_time=600 \
+-e dy_limit_duration=19:00-24:00,00:00-02:00 \
+-e dy_limit_white_user_id=3 \
+vaxilu/soga
+
+
+# 运行第二个容器
+docker run --restart=on-failure --name p.ssrjp-02-04-06 -d \
+-v /etc/soga/:/etc/soga/ --network host \
+-e type=sspanel-uim \
+-e server_type=ssr \
+-e soga_key=XqnhglMPQZKvkEOTVWcZKAWCPNyFhqJi \
+-e api=webapi \
+-e webapi_url=https://v2ray.yuntivpn.xyz \
+-e webapi_key=NimaQu \
+-e node_id=365,366,367 \
+-e proxy_protocol=true \
+-e forbidden_bit_torrent=true \
+-e user_tcp_limit=200 \
+-e redis_enable=true \
+-e redis_addr=195.123.241.153:12345 \
+-e redis_password=fgsdfgasgdfui \
+-e redis_db=5 \
+-e conn_limit_expiry=5 \
+-e dy_limit_enable=true \
+-e dy_limit_duration=20:00-24:00,00:00-02:00 \
+-e dy_limit_trigger_time=30 \
+-e dy_limit_trigger_speed=200 \
+-e dy_limit_speed=80 \
+-e dy_limit_time=600 \
+vaxilu/soga
+
+# 运行第三个容器
+docker run --restart=on-failure --name b.jp-01-02-03-04 -d \
+-v /etc/soga/:/etc/soga/ --network host \
+-e type=sspanel-uim \
+-e server_type=v2ray \
+-e soga_key=tLlTYQC9W0j1Ihnq5d7jYI82kQbxjfYG \
+-e api=webapi \
+-e webapi_url=https://v2ray.yuntivpn.xyz \
+-e webapi_key=NimaQu \
+-e node_id=232,233,260,261 \
+-e proxy_protocol=true \
+-e forbidden_bit_torrent=true \
+-e user_tcp_limit=200 \
+-e redis_enable=true \
+-e redis_addr=195.123.241.153:12345 \
+-e redis_password=fgsdfgasgdfui \
+-e redis_db=6 \
+-e conn_limit_expiry=5 \
+-e dy_limit_enable=true \
+-e dy_limit_duration=20:00-24:00,00:00-02:00 \
+-e dy_limit_trigger_time=30 \
+-e dy_limit_trigger_speed=200 \
+-e dy_limit_speed=80 \
+-e dy_limit_time=600 \
+vaxilu/soga
+
+# 运行第四个容器
+docker run --restart=on-failure --name p.jp-01-03-05 -d \
+-v /etc/soga/:/etc/soga/ --network host \
+-e type=sspanel-uim \
+-e server_type=v2ray \
+-e soga_key=tLlTYQC9W0j1Ihnq5d7jYI82kQbxjfYG \
+-e api=webapi \
+-e webapi_url=https://v2ray.yuntivpn.xyz \
+-e webapi_key=NimaQu \
+-e node_id=389,390,391 \
+-e proxy_protocol=true \
+-e forbidden_bit_torrent=true \
+-e user_tcp_limit=200 \
+-e redis_enable=true \
+-e redis_addr=195.123.241.153:12345 \
+-e redis_password=fgsdfgasgdfui \
+-e redis_db=5 \
+-e conn_limit_expiry=5 \
+-e dy_limit_enable=true \
+-e dy_limit_duration=20:00-24:00,00:00-02:00 \
+-e dy_limit_trigger_time=30 \
+-e dy_limit_trigger_speed=200 \
+-e dy_limit_speed=80 \
+-e dy_limit_time=600 \
+vaxilu/soga
+
+echo -e "${Info}所有 Docker 容器已成功启动！"
+
+# 第六步：安装并启动 Nezha 监控 Agent
+echo "检查并安装 unzip..."
+if ! command -v unzip &>/dev/null; then
+    echo "unzip 未安装，正在安装..."
+    apt update && apt install -y unzip
+fi
+echo "开始安装并启动 Nezha 监控 Agent..."
+
+wget https://github.com/nezhahq/agent/releases/download/v0.20.5/nezha-agent_linux_amd64.zip && \
+unzip nezha-agent_linux_amd64.zip && \
+chmod +x nezha-agent && \
+./nezha-agent service install -s 15.235.144.68:5555 -p JLESruRGfsGLi1HWvJ
+
+echo -e "${Info}Nezha 监控 Agent 安装并启动完成！"
+
+# 第七步：创建并写入配置文件
+echo "开始创建并写入配置文件..."
+
+# 确保 /etc/soga 目录存在
+if [ ! -d "/etc/soga" ]; then
+    mkdir -p /etc/soga
+    echo "已创建目录 /etc/soga"
+else
+    echo "目录 /etc/soga 已存在，跳过创建。"
+fi
+
+# 创建 /etc/soga/dns.yml 文件并写入内容
+cat <<EOF > /etc/soga/dns.yml
+https://nrt.core.access.zznet.fun/dns-query:
+  strategy: ipv4_only
+  rules:
+    # ---------- > Japan Media
+    # > NHK+
+    - domain:nhk.jp
+    - domain:nhk.or.jp
+    # > DMM
+    - domain:dmm-extension.com
+    - domain:dmm.co.jp
+    - domain:dmm.com
+    - domain:videomarket.jp
+    - domain:p-smith.com
+    - domain:vmdash-cenc.akamaized.net
+    - domain:img.vm-movie.jp
+    # > Abema
+    - domain:abema.io
+    - domain:abema.tv
+    - domain:ds-linear-abematv.akamaized.net
+    - domain:linear-abematv.akamaized.net
+    - domain:ds-vod-abematv.akamaized.net
+    - domain:vod-abematv.akamaized.net
+    - domain:vod-playout-abematv.akamaized.net
+    - domain:ameba.jp
+    - domain:hayabusa.io
+    - domain:bucketeer.jp
+    - domain:abema.adx.promo
+    - domain:hayabusa.media
+    - domain:abema-tv.com
+    # > NicoNico
+    - domain:dmc.nico
+    - domain:nicovideo.jp
+    - domain:nimg.jp
+    # > Telasa
+    - domain:telasa.jp
+    - domain:kddi-video.com
+    - domain:videopass.jp
+    - domain:d2lmsumy47c8as.cloudfront.net
+    # > Paravi
+    - domain:paravi.jp
+    # > U-NEXT
+    - domain:unext.jp
+    - domain:nxtv.jp
+    # > Hulu Japan
+    - domain:happyon.jp
+    - domain:hulu.jp
+    - domain:prod.hjholdings.tv
+    - domain:streaks.jp
+    - domain:yb.uncn.jp
+    - domain:hjholdings.jp
+    # > TVer
+    - domain:tver.jp
+    - domain:edge.api.brightcove.com
+    # - domain:players.brightcove.net
+    - domain:gorin.jp
+    - domain:screens-lab.jp
+    - domain:tver.co.jp
+    - domain:dogatch.jp
+    # > GYAO!
+    - domain:gyao.yahoo.co.jp
+    # > WOWOW
+    - domain:wowow.co.jp
+    # > Videomarket
+    - domain:videomarket.jp
+    # > D Anime Store
+    - domain:animestore.docomo.ne.jp
+    # > Fuji TV
+    - domain:fujitv.co.jp
+    - domain:stream.ne.jp
+    # > Radiko
+    - domain:radiko.jp
+    - domain:radionikkei.jp
+    - domain:smartstream.ne.jp
+    # > Karaoke@DAM
+    - domain:clubdam.com
+    # > J:com On Demand
+    - domain:id.zaq.ne.jp
+    # > AnimeFesta
+    - domain:api-animefesta.iowl.jp
+    # > Lemino
+    - domain:if.lemino.docomo.ne.jp
+    # > Rakuten TV JP
+    - domain:rakuten.co.jp
+    # > Games
+    - domain:cygames.jp
+    - domain:konosubafd.jp
+    - domain:colorfulpalette.org
+    - domain:worldflipper.jp
+    - domain:jujutsuphanpara.jp
+    # > Mora
+    - domain:mora.jp
+    # > Music.jp
+    - domain:music.jp
+    - domain:music-book.jp
+    # > Reads 
+    - domain:data-cloudauthoring.magazine.rakuten.co.jp
+EOF
+
+if [ $? -eq 0 ]; then
+    echo "文件 /etc/soga/dns.yml 已成功创建并写入内容。"
+else
+    echo "创建 /etc/soga/dns.yml 失败！"
+    exit 1
+fi
+
+# 创建 /etc/soga/routes.toml 文件并写入内容
+cat <<EOF > /etc/soga/routes.toml
+enable = true
+
+[[routes]]
+rules = [
+  # 流媒体
+  "geosite:netflix",
+  "geosite:disney",
+  "geosite:hulu",
+
+  "domain-suffix:bcbolthboa-a.akamaihd.net",
+  "domain-suffix:cf-images.ap-southeast-1.prod.boltdns.net",
+  "domain-suffix:cinemax.com",
+  "domain-suffix:dai3fd1oh325y.cloudfront.net",
+  "domain-suffix:execute-api.ap-southeast-1.amazonaws.com",
+  "domain-suffix:execute-api.us-east-1.amazonaws.com",
+  "domain-suffix:forthethrone.com",
+  "domain-suffix:hbo.com",
+  "domain-suffix:hbo.com.c.footprint.net",
+  "domain-suffix:hbo.com.edgesuite.net",
+  "domain-suffix:hbo.map.fastly.net",
+  "domain-suffix:hboasia.com",
+  "domain-suffix:hboasia1-i.akamaihd.net",
+  "domain-suffix:hboasia2-i.akamaihd.net",
+  "domain-suffix:hboasia3-i.akamaihd.net",
+  "domain-suffix:hboasia4-i.akamaihd.net",
+  "domain-suffix:hboasia5-i.akamaihd.net",
+  "domain-suffix:hboasialive.akamaized.net",
+  "domain-suffix:hbogeo.cust.footprint.net",
+  "domain-suffix:hbogo.co.th",
+  "domain-suffix:hbogo.com",
+  "domain-suffix:hbogo.eu",
+  "domain-suffix:hbogoasia.com",
+  "domain-suffix:hbogoasia.hk",
+  "domain-suffix:hbogoasia.id",
+  "domain-suffix:hbogoasia.ph",
+  "domain-suffix:hbogoasia.sg",
+  "domain-suffix:hbogoasia.tw",
+  "domain-suffix:hbogoprod-vod.akamaized.net",
+  "domain-suffix:hbolb.onwardsmg.com",
+  "domain-suffix:hbomax.com",
+  "domain-suffix:hbomaxcdn.com",
+  "domain-suffix:hbomaxdash.s.llnwi.net",
+  "domain-suffix:hbonow.com",
+  "domain-suffix:hbounify-prod.evergent.com",
+  "domain-suffix:manifest.prod.boltdns.net",
+  "domain-suffix:max.com",
+  "domain-suffix:maxgo.com",
+  "domain-suffix:now-ashare.com",
+  "domain-suffix:now-tv.com",
+  "domain-suffix:now.com",
+  "domain-suffix:now.com.hk",
+  "domain-suffix:nowe.com",
+  "domain-suffix:nowe.hk",
+  "domain-suffix:players.brightcove.net",
+  "domain-suffix:warnermediacdn.com",
+  "domain-suffix:youboranqs01.com",
+
+  # 学术资源
+  "domain:scholar.google.com",
+  "domain-suffix:1lib.cloud",
+  "domain-suffix:1lib.domains",
+  "domain-suffix:1lib.education",
+  "domain-suffix:1lib.eu",
+  "domain-suffix:1lib.limited",
+  "domain-suffix:1lib.pl",
+  "domain-suffix:1lib.to",
+  "domain-suffix:1lib.tw",
+  "domain-suffix:2lib.org",
+  "domain-suffix:3lib.net",
+  "domain-suffix:aclweb.org",
+  "domain-suffix:acm.org",
+  "domain-suffix:acs.org",
+  "domain-suffix:aiaa.org",
+  "domain-suffix:aip.org",
+  "domain-suffix:altmetric.com",
+  "domain-suffix:amamanualofstyle.com",
+  "domain-suffix:ams.org",
+  "domain-suffix:analytictech.com",
+  "domain-suffix:anb.org",
+  "domain-suffix:annualreviews.org",
+  "domain-suffix:apa.org",
+  "domain-suffix:apress.com",
+  "domain-suffix:aps.org",
+  "domain-suffix:art1lib.com",
+  "domain-suffix:arxiv.org",
+  "domain-suffix:ascelibrary.org",
+  "domain-suffix:asha.org",
+  "domain-suffix:asm.org",
+  "domain-suffix:asme.org",
+  "domain-suffix:astm.org",
+  "domain-suffix:b-ok.africa",
+  "domain-suffix:b-ok.asia",
+  "domain-suffix:b-ok.cc",
+  "domain-suffix:b-ok.global",
+  "domain-suffix:b-ok.org",
+  "domain-suffix:berkeley.edu",
+  "domain-suffix:biomedcentral.com",
+  "domain-suffix:biorxiv.org",
+  "domain-suffix:blackstonespoliceservice.com",
+  "domain-suffix:blackwell-synergy.com",
+  "domain-suffix:bmj.com",
+  "domain-suffix:book4you.org",
+  "domain-suffix:bookfi.net",
+  "domain-suffix:booksc.eu",
+  "domain-suffix:booksc.me",
+  "domain-suffix:booksc.org",
+  "domain-suffix:booksc.xyz",
+  "domain-suffix:bookshome.info",
+  "domain-suffix:bookshome.net",
+  "domain-suffix:bookshome.world",
+  "domain-suffix:brill.com",
+  "domain-suffix:cabdirect.org",
+  "domain-suffix:cambridge.org",
+  "domain-suffix:cambridgedigital.net",
+  "domain-suffix:cambridgemaths.org",
+  "domain-suffix:cambridgeschoolshakespeare.com",
+  "domain-suffix:cas.org",
+  "domain-suffix:cell.com",
+  "domain-suffix:clarivate.com",
+  "domain-suffix:cnki.net",
+  "domain-suffix:computer.org",
+  "domain-suffix:computingreviews.com",
+  "domain-suffix:cqvip.com",
+  "domain-suffix:crossref.org",
+  "domain-suffix:csiro.au",
+  "domain-suffix:de1lib.org",
+  "domain-suffix:deepdyve.com",
+  "domain-suffix:degruyter.com",
+  "domain-suffix:dentalhypotheses.com",
+  "domain-suffix:doi.info",
+  "domain-suffix:doi.org",
+  "domain-suffix:ebscohost.com",
+  "domain-suffix:elifesciences.org",
+  "domain-suffix:els-cdn.com",
+  "domain-suffix:elsevier-ae.com",
+  "domain-suffix:elsevier.com",
+  "domain-suffix:elsevier.io",
+  "domain-suffix:emerald.com",
+  "domain-suffix:endnote.com",
+  "domain-suffix:engineeringvillage.com",
+  "domain-suffix:epigeum.com",
+  "domain-suffix:europepmc.org",
+  "domain-suffix:evise.com",
+  "domain-suffix:frontiersin.org",
+  "domain-suffix:gale.com",
+  "domain-suffix:galegroup.com",
+  "domain-suffix:geoscienceworld.org",
+  "domain-suffix:ggsrv.com",
+  "domain-suffix:hindawi.com",
+  "domain-suffix:hk1lib.org",
+  "domain-suffix:ic.ac.uk",
+  "domain-suffix:icevirtuallibrary.com",
+  "domain-suffix:ieee.org",
+  "domain-suffix:ieeecomputer.org",
+  "domain-suffix:ieeecomputersociety.org",
+  "domain-suffix:imf.org",
+  "domain-suffix:imperial.ac.uk",
+  "domain-suffix:imperial.insendi.com",
+  "domain-suffix:imperialbusiness.school",
+  "domain-suffix:informs.org",
+  "domain-suffix:iop.org",
+  "domain-suffix:isca-speech.org",
+  "domain-suffix:isiknowledge.com",
+  "domain-suffix:jamanetwork.com",
+  "domain-suffix:japanknowledge.com",
+  "domain-suffix:jbc.org",
+  "domain-suffix:jbe-platform.com",
+  "domain-suffix:jhu.edu",
+  "domain-suffix:jmlr.org",
+  "domain-suffix:jneurosci.org",
+  "domain-suffix:jstor.org",
+  "domain-suffix:karger.com",
+  "domain-suffix:knovel.com",
+  "domain-suffix:kuke.com",
+  "domain-suffix:lawdata.com.tw",
+  "domain-suffix:libguides.com",
+  "domain-suffix:libsolutions.app",
+  "domain-suffix:libsolutions.domains",
+  "domain-suffix:libsolutions.net",
+  "domain-suffix:liebertpub.com",
+  "domain-suffix:literatumonline.com",
+  "domain-suffix:ma1lib.org",
+  "domain-suffix:madsrevolution.net",
+  "domain-suffix:mdpi.com",
+  "domain-suffix:mit",
+  "domain-suffix:mit.edu",
+  "domain-suffix:mit.net",
+  "domain-suffix:mitpressjournals.org",
+  "domain-suffix:mpg.de",
+  "domain-suffix:myilibrary.com",
+  "domain-suffix:nature.com",
+  "domain-suffix:ncbi.nlm.nih.gov",
+  "domain-suffix:nejm.org",
+  "domain-suffix:neurology.org",
+  "domain-suffix:newisiknowledge.com",
+  "domain-suffix:oecd-ilibrary.org",
+  "domain-suffix:oed.com",
+  "domain-suffix:omscr.com",
+  "domain-suffix:osapublishing.org",
+  "domain-suffix:oup.com",
+  "domain-suffix:ouplaw.com",
+  "domain-suffix:ovid.com",
+  "domain-suffix:ox.ac.uk",
+  "domain-suffix:oxfordaasc.com",
+  "domain-suffix:oxfordartonline.com",
+  "domain-suffix:oxfordbibliographies.com",
+  "domain-suffix:oxfordclinicalpsych.com",
+  "domain-suffix:oxforddnb.com",
+  "domain-suffix:oxfordfirstsource.com",
+  "domain-suffix:oxfordhandbooks.com",
+  "domain-suffix:oxfordlawtrove.com",
+  "domain-suffix:oxfordmedicine.com",
+  "domain-suffix:oxfordmusiconline.com",
+  "domain-suffix:oxfordpoliticstrove.com",
+  "domain-suffix:oxfordre.com",
+  "domain-suffix:oxfordreference.com",
+  "domain-suffix:oxfordscholarlyeditions.com",
+  "domain-suffix:oxfordscholarship.com",
+  "domain-suffix:oxfordwesternmusic.com",
+  "domain-suffix:peerj.com",
+  "domain-suffix:physiology.org",
+  "domain-suffix:pkulaw.com",
+  "domain-suffix:plos.org",
+  "domain-suffix:pnas.org",
+  "domain-suffix:princeton.edu",
+  "domain-suffix:proquest.com",
+  "domain-suffix:psyccareers.com",
+  "domain-suffix:readcube.com",
+  "domain-suffix:researchgate.net",
+  "domain-suffix:routledgehandbooks.com",
+  "domain-suffix:royalsocietypublishing.org",
+  "domain-suffix:rsc.org",
+  "domain-suffix:sagepub.com",
+  "domain-suffix:scholarpedia.org",
+  "domain-suffix:sci-hub.tw",
+  "domain-suffix:science.org",
+  "domain-suffix:sciencedirect.com",
+  "domain-suffix:sciencedirectassets.com",
+  "domain-suffix:sciencemag.org",
+  "domain-suffix:sciencenets.com",
+  "domain-suffix:scientificamerican.com",
+  "domain-suffix:scitation.org",
+  "domain-suffix:scopus.com",
+  "domain-suffix:semanticscholar.org",
+  "domain-suffix:serialssolutions.com",
+  "domain-suffix:sg1lib.org",
+  "domain-suffix:siam.org",
+  "domain-suffix:silverchair-cdn.com",
+  "domain-suffix:singlelogin.app",
+  "domain-suffix:singlelogin.me",
+  "domain-suffix:sipriyearbook.org",
+  "domain-suffix:spiedigitallibrary.org",
+  "domain-suffix:springer.com",
+  "domain-suffix:springerlink.com",
+  "domain-suffix:springernature.com",
+  "domain-suffix:statsmakemecry.com",
+  "domain-suffix:tandf.co.uk",
+  "domain-suffix:tandfonline.com",
+  "domain-suffix:taylorandfrancis.com",
+  "domain-suffix:taylorfrancis.com",
+  "domain-suffix:thelancet.com",
+  "domain-suffix:turnitin.com",
+  "domain-suffix:uchicago.edu",
+  "domain-suffix:ucla.edu",
+  "domain-suffix:ukwhoswho.com",
+  "domain-suffix:umass.edu",
+  "domain-suffix:un.org",
+  "domain-suffix:uni-bielefeld.de",
+  "domain-suffix:universitypressscholarship.com",
+  "domain-suffix:uq.edu.au",
+  "domain-suffix:uq.h5p.com",
+  "domain-suffix:veryshortintroductions.com",
+  "domain-suffix:wanfangdata.com",
+  "domain-suffix:wanfangdata.com.cn",
+  "domain-suffix:webofknowledge.com",
+  "domain-suffix:webofscience.com",
+  "domain-suffix:westlaw.com",
+  "domain-suffix:westlawchina.com",
+  "domain-suffix:wiley.com",
+  "domain-suffix:wkap.nl",
+  "domain-suffix:worldbank.org",
+  "domain-suffix:worldscientific.com",
+  "domain-suffix:yale.edu",
+  "domain-suffix:z-lib.org",
+  "domain-suffix:zlib.life",
+  "domain-suffix:zlibcdn.com",
+  "domain-suffix:zlibcdn2.com",
+  "domain-suffix:zotero.org"
+]
+
+[[routes.Outs]]
+listen = ""
+type = "ss"
+server = "nf-disney-jp.ytjscloud.com"
+port = 4610
+password = "D2AmLZIWlMulG5ki"
+cipher = "aes-128-gcm"
+
+[[routes]]
+rules = ["*"]
+
+[[routes.Outs]]
+listen = ""
+type = "direct"
+EOF
+
+if [ $? -eq 0 ]; then
+    echo "文件 /etc/soga/routes.toml 已成功创建并写入内容。"
+else
+    echo "创建 /etc/soga/routes.toml 失败！"
+    exit 1
+fi
+
+echo -e "${Info}配置文件已成功创建并写入！"
 
 # 第三步：配置系统时区
 echo "开始配置系统时区为 Asia/Shanghai..."
@@ -179,23 +745,6 @@ function update_ddns() {
         return 1
     fi
 }
-
-# 第五步：下载并执行 install.sh 脚本
-echo "开始下载并执行 install.sh 脚本..."
-wget -O install.sh --no-check-certificate http://ytpass.fxscloud.com:666/client/J6XHnj7FaJT6lzA2/install.sh
-if [ $? -ne 0 ]; then
-    log "${Error} 下载 install.sh 脚本失败！"
-    exit 1
-fi
-
-bash install.sh
-if [ $? -ne 0 ]; then
-    log "${Error} 执行 install.sh 脚本失败！"
-    rm -f install.sh
-    exit 1
-fi
-rm -f install.sh
-log "${Info} install.sh 脚本执行完成！"
 
 # 创建定时任务，每分钟检测并更新 DDNS
 echo "创建定时任务，每分钟检测 IP 并更新 DDNS..."
