@@ -253,63 +253,80 @@ else
     echo "目录 /etc/soga 已存在，跳过创建。"
 fi
 
-# 创建 /etc/soga/dns.yml 文件并写入内容
-cat <<EOF > /etc/soga/dns.yml
-gpt-jp01.ytjscloud.com:62580:
-  strategy: ipv4_first
-  rules:
-    - domain:openai.com
-    - domain:chat.openai.com
-    - domain:challenges.cloudflare.com
-    - domain:auth0.openai.com
-    - domain:platform.openai.com
-    - domain:ai.com
-    - domain:chatgpt.com
-    - domain:oaiusercontent.com
-    - domain:browser-intake-datadoghq.com
-    - domain:otokyo1a.turn.livekit.cloud
-    - domain:media.giphy.com
-    - domain:i1.wp.com
-    - domain:s.gravatar.com
-    - domain:api.revenuecat.com
-    - domain:auth0.com
-    - domain:o33249.ingest.sentry.io
-    - domain:oaistatic.com
-    - domain:featureassets.org
-    - domain:prodregistryv2.org
-EOF
-
-if [ $? -eq 0 ]; then
-    echo "文件 /etc/soga/dns.yml 已成功创建并写入内容。"
-else
-    echo "创建 /etc/soga/dns.yml 失败！"
-    exit 1
-fi
-
 # 创建 /etc/soga/routes.toml 文件并写入内容
 cat <<EOF > /etc/soga/routes.toml
-enable=true
+enable = true
 
 [[routes]]
-rules=[
-"geosite:netflix",
-"geosite:disney",
-"geosite:dazn",
+rules = [
+  "geosite:netflix",
+  "geosite:disney",
+  "geosite:hulu",
+
+  "domain-suffix:bcbolthboa-a.akamaihd.net",
+  "domain-suffix:cf-images.ap-southeast-1.prod.boltdns.net",
+  "domain-suffix:cinemax.com",
+  "domain-suffix:dai3fd1oh325y.cloudfront.net",
+  "domain-suffix:execute-api.ap-southeast-1.amazonaws.com",
+  "domain-suffix:execute-api.us-east-1.amazonaws.com",
+  "domain-suffix:forthethrone.com",
+  "domain-suffix:hbo.com",
+  "domain-suffix:hbo.com.c.footprint.net",
+  "domain-suffix:hbo.com.edgesuite.net",
+  "domain-suffix:hbo.map.fastly.net",
+  "domain-suffix:hboasia.com",
+  "domain-suffix:hboasia1-i.akamaihd.net",
+  "domain-suffix:hboasia2-i.akamaihd.net",
+  "domain-suffix:hboasia3-i.akamaihd.net",
+  "domain-suffix:hboasia4-i.akamaihd.net",
+  "domain-suffix:hboasia5-i.akamaihd.net",
+  "domain-suffix:hboasialive.akamaized.net",
+  "domain-suffix:hbogeo.cust.footprint.net",
+  "domain-suffix:hbogo.co.th",
+  "domain-suffix:hbogo.com",
+  "domain-suffix:hbogo.eu",
+  "domain-suffix:hbogoasia.com",
+  "domain-suffix:hbogoasia.hk",
+  "domain-suffix:hbogoasia.id",
+  "domain-suffix:hbogoasia.ph",
+  "domain-suffix:hbogoasia.sg",
+  "domain-suffix:hbogoasia.tw",
+  "domain-suffix:hbogoprod-vod.akamaized.net",
+  "domain-suffix:hbolb.onwardsmg.com",
+  "domain-suffix:hbomax.com",
+  "domain-suffix:hbomaxcdn.com",
+  "domain-suffix:hbomaxdash.s.llnwi.net",
+  "domain-suffix:hbonow.com",
+  "domain-suffix:hbounify-prod.evergent.com",
+  "domain-suffix:manifest.prod.boltdns.net",
+  "domain-suffix:max.com",
+  "domain-suffix:maxgo.com",
+  "domain-suffix:now-ashare.com",
+  "domain-suffix:now-tv.com",
+  "domain-suffix:now.com",
+  "domain-suffix:now.com.hk",
+  "domain-suffix:nowe.com",
+  "domain-suffix:nowe.hk",
+  "domain-suffix:players.brightcove.net",
+  "domain-suffix:warnermediacdn.com",
+  "domain-suffix:youboranqs01.com"
 ]
+
 [[routes.Outs]]
-listen=""
-type="ss"
-server="nf-disney-sg.ytjscloud.com"
-port=4610
-password="D2AmLZIWlMulG5ki"
-cipher="aes-128-gcm"
+listen = ""
+type = "ss"
+server = "nf-disney-sg.ytjscloud.com"
+port = 4610
+password = "D2AmLZIWlMulG5ki"
+cipher = "aes-128-gcm"
 
 [[routes]]
-rules=["*"]
+rules = ["*"]
 
 [[routes.Outs]]
-listen=""
-type="direct"
+listen = ""
+type = "direct"
+
 EOF
 
 if [ $? -eq 0 ]; then
