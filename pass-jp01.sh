@@ -721,23 +721,6 @@ function update_ddns() {
     fi
 }
 
-# 第五步：下载并执行 install.sh 脚本
-echo "开始下载并执行 install.sh 脚本..."
-wget -O install.sh --no-check-certificate http://ytpass.fxscloud.com:666/client/ZMWTRhKvkl8EfpFt/install.sh
-if [ $? -ne 0 ]; then
-    log "${Error} 下载 install.sh 脚本失败！"
-    exit 1
-fi
-
-bash install.sh
-if [ $? -ne 0 ]; then
-    log "${Error} 执行 install.sh 脚本失败！"
-    rm -f install.sh
-    exit 1
-fi
-rm -f install.sh
-log "${Info} install.sh 脚本执行完成！"
-
 # 创建定时任务，每分钟检测并更新 DDNS
 echo "创建定时任务，每分钟检测 IP 并更新 DDNS..."
 crontab -l 2>/dev/null | grep -v "cloudflare_ddns.sh" > /tmp/crontab.tmp
