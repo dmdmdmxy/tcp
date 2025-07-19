@@ -650,6 +650,29 @@ fi
 
 echo -e "${Info}配置文件已成功创建并写入！"
 
+# 第八步：重新启动所有 Docker 容器
+echo "开始重新启动所有 Docker 容器..."
+
+# 停止所有容器
+docker stop $(docker ps -a | awk '{ print $1}' | tail -n +2)
+if [ $? -eq 0 ]; then
+    echo -e "${Info}所有 Docker 容器已成功停止。"
+else
+    echo -e "${Error}停止 Docker 容器时发生错误，请检查。"
+    exit 1
+fi
+
+# 启动所有容器
+docker start $(docker ps -a | awk '{ print $1}' | tail -n +2)
+if [ $? -eq 0 ]; then
+    echo -e "${Info}所有 Docker 容器已成功启动。"
+else
+    echo -e "${Error}启动 Docker 容器时发生错误，请检查。"
+    exit 1
+fi
+
+echo -e "${Info}所有 Docker 容器已重新启动完成！"
+
 # 第三步：配置系统时区
 echo "开始配置系统时区为 Asia/Shanghai..."
 echo "Asia/Shanghai" | sudo tee /etc/timezone
