@@ -16,7 +16,7 @@ Tip="${Green_font_prefix}[注意]${Font_color_suffix}"
 
 # 配置参数
 API_TOKEN="ZCi8YCsNVEzJJt32-QB7QsQlY6A8dxwwqMKmM7dF"  # 替换为你的 Cloudflare API Token
-DOMAIN="6.aaa.sg01.yunti.best"                            # 子域名
+DOMAIN="5.aaa.sg02.yunti.best"                            # 子域名
 ROOT_DOMAIN="yunti.best"                           # 主域名
 
 # 第一步：设置网络优化参数
@@ -174,7 +174,7 @@ fi
 echo "开始运行多个 Docker 容器..."
 
 # 运行第一个容器
-docker run --restart=on-failure --name gw-basic-sg-36-39 -d \
+docker run --restart=on-failure --name gw-pro-sg-50-51-28-75 -d \
 -v /etc/soga/:/etc/soga/ --network host \
 -e soga_key=Ox2YKGI6WiUBNXr1ZD2Ev0Y3HrLbev9v \
 -e type=sspanel-uim \
@@ -182,22 +182,23 @@ docker run --restart=on-failure --name gw-basic-sg-36-39 -d \
 -e api=webapi \
 -e webapi_url=https://qwertyuiopzxcvbnm.icu/ \
 -e webapi_key=qwer123 \
--e node_id=36,39 \
--e user_speed_limit=100 \
+-e node_id=50,51,28,75 \
+-e user_speed_limit=500 \
 -e forbidden_bit_torrent=true \
 -e user_tcp_limit=200 \
 -e proxy_protocol=true \
 -e dy_limit_enable=true \
 -e dy_limit_trigger_time=30 \
--e dy_limit_trigger_speed=80 \
--e dy_limit_speed=50 \
+-e dy_limit_trigger_speed=150 \
+-e dy_limit_speed=80 \
 -e dy_limit_time=600 \
 -e dy_limit_duration=19:00-24:00,00:00-02:00 \
 -e dy_limit_white_user_id=3 \
 vaxilu/soga
 
+
 # 运行第二个容器
-docker run --restart=on-failure --name a.sg-01-02 -d \
+docker run --restart=on-failure --name p.sg-01-02 -d \
 -v /etc/soga/:/etc/soga/ --network host \
 -e type=sspanel-uim \
 -e server_type=v2ray \
@@ -205,23 +206,49 @@ docker run --restart=on-failure --name a.sg-01-02 -d \
 -e api=webapi \
 -e webapi_url=https://v2ray.yuntivpn.xyz \
 -e webapi_key=NimaQu \
--e node_id=20,21 \
+-e node_id=309,310 \
 -e proxy_protocol=true \
 -e forbidden_bit_torrent=true \
 -e user_tcp_limit=200 \
 -e redis_enable=true \
 -e redis_addr=195.123.241.153:12345 \
 -e redis_password=fgsdfgasgdfui \
--e redis_db=4 \
+-e redis_db=5 \
 -e conn_limit_expiry=5 \
 -e dy_limit_enable=true \
 -e dy_limit_duration=20:00-24:00,00:00-02:00 \
 -e dy_limit_trigger_time=30 \
--e dy_limit_trigger_speed=100 \
--e dy_limit_speed=50 \
+-e dy_limit_trigger_speed=200 \
+-e dy_limit_speed=80 \
 -e dy_limit_time=600 \
 vaxilu/soga
 
+
+# 运行第三个容器
+docker run --restart=on-failure --name b.sg-01-02-03-04 -d \
+-v /etc/soga/:/etc/soga/ --network host \
+-e type=sspanel-uim \
+-e server_type=v2ray \
+-e soga_key=tLlTYQC9W0j1Ihnq5d7jYI82kQbxjfYG \
+-e api=webapi \
+-e webapi_url=https://v2ray.yuntivpn.xyz \
+-e webapi_key=NimaQu \
+-e node_id=266,265,264,263 \
+-e proxy_protocol=true \
+-e forbidden_bit_torrent=true \
+-e user_tcp_limit=200 \
+-e redis_enable=true \
+-e redis_addr=195.123.241.153:12345 \
+-e redis_password=fgsdfgasgdfui \
+-e redis_db=6 \
+-e conn_limit_expiry=5 \
+-e dy_limit_enable=true \
+-e dy_limit_duration=20:00-24:00,00:00-02:00 \
+-e dy_limit_trigger_time=30 \
+-e dy_limit_trigger_speed=200 \
+-e dy_limit_speed=80 \
+-e dy_limit_time=600 \
+vaxilu/soga
 
 
 
@@ -238,7 +265,7 @@ echo "开始安装并启动 Nezha 监控 Agent..."
 wget https://github.com/nezhahq/agent/releases/download/v0.20.5/nezha-agent_linux_amd64.zip && \
 unzip nezha-agent_linux_amd64.zip && \
 chmod +x nezha-agent && \
-./nezha-agent service install -s 15.235.144.68:5555 -p UIEveEdu7iZtYuv4bc
+./nezha-agent service install -s 15.235.144.68:5555 -p 9LIaIhYxxofrxNb3mw
 
 echo -e "${Info}Nezha 监控 Agent 安装并启动完成！"
 
@@ -253,63 +280,79 @@ else
     echo "目录 /etc/soga 已存在，跳过创建。"
 fi
 
-# 创建 /etc/soga/dns.yml 文件并写入内容
-cat <<EOF > /etc/soga/dns.yml
-gpt-jp01.ytjscloud.com:62580:
-  strategy: ipv4_first
-  rules:
-    - domain:openai.com
-    - domain:chat.openai.com
-    - domain:challenges.cloudflare.com
-    - domain:auth0.openai.com
-    - domain:platform.openai.com
-    - domain:ai.com
-    - domain:chatgpt.com
-    - domain:oaiusercontent.com
-    - domain:browser-intake-datadoghq.com
-    - domain:otokyo1a.turn.livekit.cloud
-    - domain:media.giphy.com
-    - domain:i1.wp.com
-    - domain:s.gravatar.com
-    - domain:api.revenuecat.com
-    - domain:auth0.com
-    - domain:o33249.ingest.sentry.io
-    - domain:oaistatic.com
-    - domain:featureassets.org
-    - domain:prodregistryv2.org
-EOF
-
-if [ $? -eq 0 ]; then
-    echo "文件 /etc/soga/dns.yml 已成功创建并写入内容。"
-else
-    echo "创建 /etc/soga/dns.yml 失败！"
-    exit 1
-fi
-
 # 创建 /etc/soga/routes.toml 文件并写入内容
 cat <<EOF > /etc/soga/routes.toml
-enable=true
+enable = true
 
 [[routes]]
-rules=[
-"geosite:netflix",
-"geosite:disney",
-"geosite:dazn",
+rules = [
+  "geosite:netflix",
+  "geosite:disney",
+  "geosite:hulu",
+
+  "domain-suffix:bcbolthboa-a.akamaihd.net",
+  "domain-suffix:cf-images.ap-southeast-1.prod.boltdns.net",
+  "domain-suffix:cinemax.com",
+  "domain-suffix:dai3fd1oh325y.cloudfront.net",
+  "domain-suffix:execute-api.ap-southeast-1.amazonaws.com",
+  "domain-suffix:execute-api.us-east-1.amazonaws.com",
+  "domain-suffix:forthethrone.com",
+  "domain-suffix:hbo.com",
+  "domain-suffix:hbo.com.c.footprint.net",
+  "domain-suffix:hbo.com.edgesuite.net",
+  "domain-suffix:hbo.map.fastly.net",
+  "domain-suffix:hboasia.com",
+  "domain-suffix:hboasia1-i.akamaihd.net",
+  "domain-suffix:hboasia2-i.akamaihd.net",
+  "domain-suffix:hboasia3-i.akamaihd.net",
+  "domain-suffix:hboasia4-i.akamaihd.net",
+  "domain-suffix:hboasia5-i.akamaihd.net",
+  "domain-suffix:hboasialive.akamaized.net",
+  "domain-suffix:hbogeo.cust.footprint.net",
+  "domain-suffix:hbogo.co.th",
+  "domain-suffix:hbogo.com",
+  "domain-suffix:hbogo.eu",
+  "domain-suffix:hbogoasia.com",
+  "domain-suffix:hbogoasia.hk",
+  "domain-suffix:hbogoasia.id",
+  "domain-suffix:hbogoasia.ph",
+  "domain-suffix:hbogoasia.sg",
+  "domain-suffix:hbogoasia.tw",
+  "domain-suffix:hbogoprod-vod.akamaized.net",
+  "domain-suffix:hbolb.onwardsmg.com",
+  "domain-suffix:hbomax.com",
+  "domain-suffix:hbomaxcdn.com",
+  "domain-suffix:hbomaxdash.s.llnwi.net",
+  "domain-suffix:hbonow.com",
+  "domain-suffix:hbounify-prod.evergent.com",
+  "domain-suffix:manifest.prod.boltdns.net",
+  "domain-suffix:max.com",
+  "domain-suffix:maxgo.com",
+  "domain-suffix:now-ashare.com",
+  "domain-suffix:now-tv.com",
+  "domain-suffix:now.com",
+  "domain-suffix:now.com.hk",
+  "domain-suffix:nowe.com",
+  "domain-suffix:nowe.hk",
+  "domain-suffix:players.brightcove.net",
+  "domain-suffix:warnermediacdn.com",
+  "domain-suffix:youboranqs01.com"
 ]
+
 [[routes.Outs]]
-listen=""
-type="ss"
-server="nf-disney-sg.ytjscloud.com"
-port=4610
-password="D2AmLZIWlMulG5ki"
-cipher="aes-128-gcm"
+listen = ""
+type = "ss"
+server = "nf-disney-sg.ytjscloud.com"
+port = 4610
+password = "D2AmLZIWlMulG5ki"
+cipher = "aes-128-gcm"
 
 [[routes]]
-rules=["*"]
+rules = ["*"]
 
 [[routes.Outs]]
-listen=""
-type="direct"
+listen = ""
+type = "direct"
 EOF
 
 if [ $? -eq 0 ]; then
@@ -332,6 +375,7 @@ else
     echo "创建 /etc/soga/blockList 失败！"
     exit 1
 fi
+
 
 # 第八步：重新启动所有 Docker 容器
 echo "开始重新启动所有 Docker 容器..."
