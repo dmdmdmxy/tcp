@@ -22,39 +22,61 @@ ROOT_DOMAIN="yunti.best"                           # 主域名
 # 第一步：设置网络优化参数
 echo "正在配置网络优化参数..."
 
-cat <<EOF >> /etc/sysctl.conf
-# 网络优化参数
-net.core.default_qdisc = fq
-net.ipv4.tcp_congestion_control = bbr
-net.ipv4.conf.all.rp_filter = 0
-net.ipv4.tcp_no_metrics_save = 1
-net.ipv4.tcp_ecn = 0
-net.ipv4.tcp_frto = 0
-net.ipv4.tcp_mtu_probing = 0
-net.ipv4.tcp_rfc1337 = 1
-net.ipv4.tcp_sack = 1
-net.ipv4.tcp_fack = 1
-net.ipv4.tcp_window_scaling = 1
-net.ipv4.tcp_adv_win_scale = 2
-net.ipv4.tcp_moderate_rcvbuf = 1
-net.ipv4.tcp_rmem = 4096 65536 16777216
-net.ipv4.tcp_wmem = 4096 65536 16777216
-net.core.rmem_max = 16777216
-net.core.wmem_max = 16777216
-net.ipv4.udp_rmem_min = 8192
-net.ipv4.udp_wmem_min = 8192
+# 1. 内核参数优化（sysctl.conf）
+cat <<EOF > /etc/sysctl.conf
+fs.file-max = 1048576
+net.core.rmem_max = 67108864
+net.core.wmem_max = 67108864
 net.ipv4.ip_local_port_range = 1024 65535
-net.ipv4.tcp_timestamps = 1
 net.ipv4.tcp_tw_reuse = 1
-net.ipv4.tcp_max_syn_backlog = 4096
-net.core.somaxconn = 4096
-net.ipv4.tcp_abort_on_overflow = 1
-vm.swappiness = 10
-fs.file-max = 6553560
+net.ipv4.tcp_timestamps = 1
+net.ipv4.tcp_syncookies = 1
+net.ipv4.tcp_max_tw_buckets = 256
+net.core.somaxconn = 8192
+net.ipv4.tcp_max_syn_backlog = 16384
+net.core.netdev_max_backlog = 250000
+net.ipv4.tcp_mem = 2097152 2621440 3145728
+net.ipv4.tcp_rmem = 8192 262144 33554432
+net.ipv4.tcp_wmem = 4096 16384 33554432
+net.core.default_qdisc = fq_pie
+net.ipv4.tcp_congestion_control = bbr
+net.ipv4.tcp_no_metrics_save = 1
+net.ipv4.tcp_mtu_probing = 1
+net.ipv4.tcp_sack = 1
+net.ipv4.tcp_low_latency = 1
+net.ipv4.conf.all.arp_announce = 2
+net.ipv4.ip_forward = 1
+net.ipv6.conf.all.forwarding = 1
+net.ipv6.conf.default.forwarding = 1
+# 限制 FIN-WAIT-1 状态的连接数
+# net.ipv4.tcp_keepalive_probes = 5
+# net.ipv4.tcp_keepalive_intvl = 15
+# net.ipv4.tcp_retries2 = 2
+# net.ipv4.tcp_orphan_retries = 1
+# net.ipv4.tcp_reordering = 5
+# net.ipv4.tcp_retrans_collapse = 0
+
+# MPTCP 相关优化（如果启用 MPTCP）
+net.mptcp.enabled = 1
 EOF
 
+# 立即生效
 sysctl -p
-echo -e "${Info}网络优化参数已成功配置并应用！"
+
+echo "内核参数优化完成！"
+
+# 2. 调整 ulimit 文件描述符限制
+echo "调整文件描述符限制..."
+cat <<EOF >> /etc/security/limits.conf
+* soft nofile 1048576
+* hard nofile 1048576
+* soft nproc 1048576
+* hard nproc 1048576
+EOF
+
+
+# 立即生效 systemd 配置
+systemctl daemon-reexec
 
 # 第二步：安装 Docker
 echo "开始检查并安装 Docker..."
