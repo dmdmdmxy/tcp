@@ -344,7 +344,7 @@ rules = [
   "domain-suffix:warnermediacdn.com",
   "domain-suffix:youboranqs01.com",
 
-   # temu 
+#temu
   "domain:temu.com",
   "domain-suffix:temu.com",
   "domain:api.temu.com",
@@ -368,7 +368,7 @@ rules = [
   "domain:research.temu.com",
   "domain:qa.temu.com",
 
-# Japan Media
+#流媒体
   "domain:nhk.jp",
   "domain:nhk.or.jp",
   "domain:dmm-extension.com",
@@ -398,52 +398,20 @@ rules = [
   "domain:kddi-video.com",
   "domain:videopass.jp",
   "domain:d2lmsumy47c8as.cloudfront.net",
-  "domain:paravi.jp",
-  "domain:unext.jp",
-  "domain:nxtv.jp",
-  "domain:happyon.jp",
-  "domain:hulu.jp",
-  "domain:prod.hjholdings.tv",
-  "domain:streaks.jp",
-  "domain:yb.uncn.jp",
-  "domain:hjholdings.jp",
-  "domain:tver.jp",
-  "domain:edge.api.brightcove.com",
-  "domain:gorin.jp",
-  "domain:screens-lab.jp",
-  "domain:tver.co.jp",
-  "domain:dogatch.jp",
-  "domain:gyao.yahoo.co.jp",
-  "domain:wowow.co.jp",
-  "domain:animestore.docomo.ne.jp",
-  "domain:fujitv.co.jp",
-  "domain:stream.ne.jp",
-  "domain:radiko.jp",
-  "domain:radionikkei.jp",
-  "domain:smartstream.ne.jp",
-  "domain:clubdam.com",
-  "domain:id.zaq.ne.jp",
-  "domain:api-animefesta.iowl.jp",
-  "domain:if.lemino.docomo.ne.jp",
-  "domain:rakuten.co.jp",
-  "domain:cygames.jp",
-  "domain:konosubafd.jp",
-  "domain:colorfulpalette.org",
-  "domain:worldflipper.jp",
-  "domain:jujutsuphanpara.jp",
-  "domain:mora.jp",
-  "domain:music.jp",
-  "domain:music-book.jp",
-  "domain:data-cloudauthoring.magazine.rakuten.co.jp"
 ]
 
 [[routes.Outs]]
 listen = ""
-type = "ss"
+type = "ssr"
 server = "jp.dmm.yunti.io"
-port = 4610
-password = "D2AmLZIWlMulG5ki"
-cipher = "aes-128-gcm"
+port = 29993
+password = "4wMNkIVsgybXfA2u"
+cipher = "chacha20-ietf"
+protocol = "auth_aes128_sha1"
+protocol_param = "206018:NBLRtS8fuklYjVd3"
+obfs = "plain"
+obfs_param = ""
+
 
 # 谷歌学术
 [[routes]]
@@ -741,74 +709,6 @@ uuid = "b4063130-2621-3834-b62b-88bcce19b924"
 alter_id = 0
 network = "tcp"
 tls = false
-
-# jptemuNHK/DMM/NICONICO
-[[routes]]
-rules = [
-  "domain:temu.com",
-  "domain-suffix:temu.com",
-  "domain:api.temu.com",
-  "domain:app.temu.com",
-  "domain:ads.temu.com",
-  "domain:global.temu.com",
-  "domain:us.temu.com",
-  "domain:uk.temu.com",
-  "domain:es.temu.com",
-  "domain:de.temu.com",
-  "domain:fr.temu.com",
-  "domain:pt.temu.com",
-  "domain:ca.temu.com",
-  "domain:jp.temu.com",
-  "domain:it.temu.com",
-  "domain:mx.temu.com",
-  "domain:jobs.temu.com",
-  "domain:share.temu.com",
-  "domain:partner.temu.com",
-  "domain:docs.temu.com",
-  "domain:research.temu.com",
-  "domain:qa.temu.com",
-  "domain:nhk.jp",
-  "domain:nhk.or.jp",
-  "domain:dmm-extension.com",
-  "domain:dmm.co.jp",
-  "domain:dmm.com",
-  "domain:videomarket.jp",
-  "domain:p-smith.com",
-  "domain:vmdash-cenc.akamaized.net",
-  "domain:img.vm-movie.jp",
-  "domain:abema.io",
-  "domain:abema.tv",
-  "domain:ds-linear-abematv.akamaized.net",
-  "domain:linear-abematv.akamaized.net",
-  "domain:ds-vod-abematv.akamaized.net",
-  "domain:vod-abematv.akamaized.net",
-  "domain:vod-playout-abematv.akamaized.net",
-  "domain:ameba.jp",
-  "domain:hayabusa.io",
-  "domain:bucketeer.jp",
-  "domain:abema.adx.promo",
-  "domain:hayabusa.media",
-  "domain:abema-tv.com",
-  "domain:dmc.nico",
-  "domain:nicovideo.jp",
-  "domain:nimg.jp",
-  "domain:telasa.jp",
-  "domain:kddi-video.com",
-  "domain:videopass.jp",
-  "domain:d2lmsumy47c8as.cloudfront.net",
-]
-
-[[routes.Outs]]
-listen = ""
-type = "ssr"
-server = "jp.dmm.yunti.io"
-port = 29993
-password = "4wMNkIVsgybXfA2u"
-cipher = "chacha20-ietf"
-protocol = "auth_aes128_sha1"
-protocol_param = "206018:NBLRtS8fuklYjVd3"
-obfs = "plain"
-obfs_param = ""
 
 
 [[routes]]
