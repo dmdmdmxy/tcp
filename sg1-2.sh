@@ -284,63 +284,25 @@ fi
 cat <<EOF > /etc/soga/routes.toml
 enable = true
 
+# nf/ds/hulu
 [[routes]]
 rules = [
-  # 流媒体
   "geosite:netflix",
   "geosite:disney",
   "geosite:hulu",
 
-  "domain-suffix:bcbolthboa-a.akamaihd.net",
-  "domain-suffix:cf-images.ap-southeast-1.prod.boltdns.net",
-  "domain-suffix:cinemax.com",
-  "domain-suffix:dai3fd1oh325y.cloudfront.net",
-  "domain-suffix:execute-api.ap-southeast-1.amazonaws.com",
-  "domain-suffix:execute-api.us-east-1.amazonaws.com",
-  "domain-suffix:forthethrone.com",
-  "domain-suffix:hbo.com",
-  "domain-suffix:hbo.com.c.footprint.net",
-  "domain-suffix:hbo.com.edgesuite.net",
-  "domain-suffix:hbo.map.fastly.net",
-  "domain-suffix:hboasia.com",
-  "domain-suffix:hboasia1-i.akamaihd.net",
-  "domain-suffix:hboasia2-i.akamaihd.net",
-  "domain-suffix:hboasia3-i.akamaihd.net",
-  "domain-suffix:hboasia4-i.akamaihd.net",
-  "domain-suffix:hboasia5-i.akamaihd.net",
-  "domain-suffix:hboasialive.akamaized.net",
-  "domain-suffix:hbogeo.cust.footprint.net",
-  "domain-suffix:hbogo.co.th",
-  "domain-suffix:hbogo.com",
-  "domain-suffix:hbogo.eu",
-  "domain-suffix:hbogoasia.com",
-  "domain-suffix:hbogoasia.hk",
-  "domain-suffix:hbogoasia.id",
-  "domain-suffix:hbogoasia.ph",
-  "domain-suffix:hbogoasia.sg",
-  "domain-suffix:hbogoasia.tw",
-  "domain-suffix:hbogoprod-vod.akamaized.net",
-  "domain-suffix:hbolb.onwardsmg.com",
-  "domain-suffix:hbomax.com",
-  "domain-suffix:hbomaxcdn.com",
-  "domain-suffix:hbomaxdash.s.llnwi.net",
-  "domain-suffix:hbonow.com",
-  "domain-suffix:hbounify-prod.evergent.com",
-  "domain-suffix:manifest.prod.boltdns.net",
-  "domain-suffix:max.com",
-  "domain-suffix:maxgo.com",
-  "domain-suffix:now-ashare.com",
-  "domain-suffix:now-tv.com",
-  "domain-suffix:now.com",
-  "domain-suffix:now.com.hk",
-  "domain-suffix:nowe.com",
-  "domain-suffix:nowe.hk",
-  "domain-suffix:players.brightcove.net",
-  "domain-suffix:warnermediacdn.com",
-  "domain-suffix:youboranqs01.com",
+[[routes.Outs]]
+listen = ""
+type = "ss"
+server = "nf-disney-sg.ytjscloud.com"
+port = 4610
+password = "D2AmLZIWlMulG5ki"
+cipher = "aes-128-gcm"
 
-  # 学术资源
-  "domain:scholar.google.com",
+# 谷歌学术
+[[routes]]
+rules = [
+ "domain:scholar.google.com",
   "domain-suffix:1lib.cloud",
   "domain-suffix:1lib.domains",
   "domain-suffix:1lib.education",
@@ -569,22 +531,75 @@ rules = [
   "domain-suffix:zlib.life",
   "domain-suffix:zlibcdn.com",
   "domain-suffix:zlibcdn2.com",
-  "domain-suffix:zotero.org"
+  "domain-suffix:zotero.org",
 ]
 
 [[routes.Outs]]
 listen = ""
-type = "ss"
-server = "nf-disney-sg.ytjscloud.com"
-port = 4610
-password = "D2AmLZIWlMulG5ki"
-cipher = "aes-128-gcm"
+type = "vmess"
+server = "hkt-1g-03.yuntijiasu.cloud"
+port = 18280
+uuid = "b4063130-2621-3834-b62b-88bcce19b924"
+alter_id = 0
+network = "tcp"
+tls = false
+
+[[routes.Outs]]
+listen = ""
+type = "vmess"
+server = "hkbn-500m-01.yuntijiasu.cloud"
+port = 18280
+uuid = "b4063130-2621-3834-b62b-88bcce19b924"
+alter_id = 0
+network = "tcp"
+tls = false
+
+[[routes.Outs]]
+listen = ""
+type = "vmess"
+server = "hkbn-500m-02.yuntijiasu.cloud"
+port = 18280
+uuid = "b4063130-2621-3834-b62b-88bcce19b924"
+alter_id = 0
+network = "tcp"
+tls = false
+
+[[routes.Outs]]
+listen = ""
+type = "vmess"
+server = "hgc-500m-01.yuntijiasu.cloud"
+port = 21555
+uuid = "b4063130-2621-3834-b62b-88bcce19b924"
+alter_id = 0
+network = "tcp"
+tls = false
+
+[[routes.Outs]]
+listen = ""
+type = "ssr"
+server = "icable-500m-01.yuntijiasu.cloud"
+port = 57420
+password = "4wMNkIVsgybXfA2u"
+cipher = "chacha20-ietf"
+protocol = "auth_aes128_sha1"
+protocol_param = "206018:NBLRtS8fuklYjVd3"
+obfs = "plain"
+obfs_param = ""
+
+[[routes.Outs]]
+listen = ""
+type = "vmess"
+server = "hgc-500m-02.yuntijiasu.cloud"
+port = 21937
+uuid = "b4063130-2621-3834-b62b-88bcce19b924"
+alter_id = 0
+network = "tcp"
+tls = false
 
 [[routes]]
 rules = ["*"]
 
 [[routes.Outs]]
-listen = ""
 type = "direct"
 EOF
 
