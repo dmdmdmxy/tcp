@@ -226,125 +226,30 @@ else
     echo "目录 /etc/soga 已存在，跳过创建。"
 fi
 
-# 创建 /etc/soga/dns.yml 文件并写入内容
-cat <<EOF > /etc/soga/dns.yml
-https://nrt.core.access.zznet.fun/dns-query:
-  strategy: ipv4_only
-  rules:
-    # ---------- > Japan Media
-    # > NHK+
-    - domain:nhk.jp
-    - domain:nhk.or.jp
-    # > DMM
-    - domain:dmm-extension.com
-    - domain:dmm.co.jp
-    - domain:dmm.com
-    - domain:videomarket.jp
-    - domain:p-smith.com
-    - domain:vmdash-cenc.akamaized.net
-    - domain:img.vm-movie.jp
-    # > Abema
-    - domain:abema.io
-    - domain:abema.tv
-    - domain:ds-linear-abematv.akamaized.net
-    - domain:linear-abematv.akamaized.net
-    - domain:ds-vod-abematv.akamaized.net
-    - domain:vod-abematv.akamaized.net
-    - domain:vod-playout-abematv.akamaized.net
-    - domain:ameba.jp
-    - domain:hayabusa.io
-    - domain:bucketeer.jp
-    - domain:abema.adx.promo
-    - domain:hayabusa.media
-    - domain:abema-tv.com
-    # > NicoNico
-    - domain:dmc.nico
-    - domain:nicovideo.jp
-    - domain:nimg.jp
-    # > Telasa
-    - domain:telasa.jp
-    - domain:kddi-video.com
-    - domain:videopass.jp
-    - domain:d2lmsumy47c8as.cloudfront.net
-    # > Paravi
-    - domain:paravi.jp
-    # > U-NEXT
-    - domain:unext.jp
-    - domain:nxtv.jp
-    # > Hulu Japan
-    - domain:happyon.jp
-    - domain:hulu.jp
-    - domain:prod.hjholdings.tv
-    - domain:streaks.jp
-    - domain:yb.uncn.jp
-    - domain:hjholdings.jp
-    # > TVer
-    - domain:tver.jp
-    - domain:edge.api.brightcove.com
-    # - domain:players.brightcove.net
-    - domain:gorin.jp
-    - domain:screens-lab.jp
-    - domain:tver.co.jp
-    - domain:dogatch.jp
-    # > GYAO!
-    - domain:gyao.yahoo.co.jp
-    # > WOWOW
-    - domain:wowow.co.jp
-    # > Videomarket
-    - domain:videomarket.jp
-    # > D Anime Store
-    - domain:animestore.docomo.ne.jp
-    # > Fuji TV
-    - domain:fujitv.co.jp
-    - domain:stream.ne.jp
-    # > Radiko
-    - domain:radiko.jp
-    - domain:radionikkei.jp
-    - domain:smartstream.ne.jp
-    # > Karaoke@DAM
-    - domain:clubdam.com
-    # > J:com On Demand
-    - domain:id.zaq.ne.jp
-    # > AnimeFesta
-    - domain:api-animefesta.iowl.jp
-    # > Lemino
-    - domain:if.lemino.docomo.ne.jp
-    # > Rakuten TV JP
-    - domain:rakuten.co.jp
-    # > Games
-    - domain:cygames.jp
-    - domain:konosubafd.jp
-    - domain:colorfulpalette.org
-    - domain:worldflipper.jp
-    - domain:jujutsuphanpara.jp
-    # > Mora
-    - domain:mora.jp
-    # > Music.jp
-    - domain:music.jp
-    - domain:music-book.jp
-    # > Reads 
-    - domain:data-cloudauthoring.magazine.rakuten.co.jp
-EOF
-
-if [ $? -eq 0 ]; then
-    echo "文件 /etc/soga/dns.yml 已成功创建并写入内容。"
-else
-    echo "创建 /etc/soga/dns.yml 失败！"
-    exit 1
-fi
-
 # 创建 /etc/soga/routes.toml 文件并写入内容
 cat <<EOF > /etc/soga/routes.toml
 enable = true
 
+# nf/ds/hulu
 [[routes]]
 rules = [
-  # 流媒体
   "geosite:netflix",
   "geosite:disney",
   "geosite:hulu",
 
-  "domain-suffix:bcbolthboa-a.akamaihd.net",
+
+[[routes.Outs]]
+listen = ""
+type = "ss"
+server = "nf-disney-jp.ytjscloud.com"
+port = 4610
+password = "D2AmLZIWlMulG5ki"
+cipher = "aes-128-gcm"
+
+# hbomax
+[[routes]]
+rules = [
+ "domain-suffix:bcbolthboa-a.akamaihd.net",
   "domain-suffix:cf-images.ap-southeast-1.prod.boltdns.net",
   "domain-suffix:cinemax.com",
   "domain-suffix:dai3fd1oh325y.cloudfront.net",
@@ -392,8 +297,79 @@ rules = [
   "domain-suffix:warnermediacdn.com",
   "domain-suffix:youboranqs01.com",
 
-  # 学术资源
-  "domain:scholar.google.com",
+#temu
+  "domain:temu.com",
+  "domain-suffix:temu.com",
+  "domain:api.temu.com",
+  "domain:app.temu.com",
+  "domain:ads.temu.com",
+  "domain:global.temu.com",
+  "domain:us.temu.com",
+  "domain:uk.temu.com",
+  "domain:es.temu.com",
+  "domain:de.temu.com",
+  "domain:fr.temu.com",
+  "domain:pt.temu.com",
+  "domain:ca.temu.com",
+  "domain:jp.temu.com",
+  "domain:it.temu.com",
+  "domain:mx.temu.com",
+  "domain:jobs.temu.com",
+  "domain:share.temu.com",
+  "domain:partner.temu.com",
+  "domain:docs.temu.com",
+  "domain:research.temu.com",
+  "domain:qa.temu.com",
+
+#流媒体
+  "domain:nhk.jp",
+  "domain:nhk.or.jp",
+  "domain:dmm-extension.com",
+  "domain:dmm.co.jp",
+  "domain:dmm.com",
+  "domain:videomarket.jp",
+  "domain:p-smith.com",
+  "domain:vmdash-cenc.akamaized.net",
+  "domain:img.vm-movie.jp",
+  "domain:abema.io",
+  "domain:abema.tv",
+  "domain:ds-linear-abematv.akamaized.net",
+  "domain:linear-abematv.akamaized.net",
+  "domain:ds-vod-abematv.akamaized.net",
+  "domain:vod-abematv.akamaized.net",
+  "domain:vod-playout-abematv.akamaized.net",
+  "domain:ameba.jp",
+  "domain:hayabusa.io",
+  "domain:bucketeer.jp",
+  "domain:abema.adx.promo",
+  "domain:hayabusa.media",
+  "domain:abema-tv.com",
+  "domain:dmc.nico",
+  "domain:nicovideo.jp",
+  "domain:nimg.jp",
+  "domain:telasa.jp",
+  "domain:kddi-video.com",
+  "domain:videopass.jp",
+  "domain:d2lmsumy47c8as.cloudfront.net",
+]
+
+[[routes.Outs]]
+listen = ""
+type = "ssr"
+server = "jp.dmm.yunti.io"
+port = 29993
+password = "4wMNkIVsgybXfA2u"
+cipher = "chacha20-ietf"
+protocol = "auth_aes128_sha1"
+protocol_param = "206018:NBLRtS8fuklYjVd3"
+obfs = "plain"
+obfs_param = ""
+
+
+# 谷歌学术
+[[routes]]
+rules = [
+ "domain:scholar.google.com",
   "domain-suffix:1lib.cloud",
   "domain-suffix:1lib.domains",
   "domain-suffix:1lib.education",
@@ -622,22 +598,76 @@ rules = [
   "domain-suffix:zlib.life",
   "domain-suffix:zlibcdn.com",
   "domain-suffix:zlibcdn2.com",
-  "domain-suffix:zotero.org"
+  "domain-suffix:zotero.org",
 ]
 
 [[routes.Outs]]
 listen = ""
-type = "ss"
-server = "nf-disney-jp.ytjscloud.com"
-port = 4610
-password = "D2AmLZIWlMulG5ki"
-cipher = "aes-128-gcm"
+type = "vmess"
+server = "hkt-1g-03.yuntijiasu.cloud"
+port = 18280
+uuid = "b4063130-2621-3834-b62b-88bcce19b924"
+alter_id = 0
+network = "tcp"
+tls = false
+
+[[routes.Outs]]
+listen = ""
+type = "vmess"
+server = "hkbn-500m-01.yuntijiasu.cloud"
+port = 18280
+uuid = "b4063130-2621-3834-b62b-88bcce19b924"
+alter_id = 0
+network = "tcp"
+tls = false
+
+[[routes.Outs]]
+listen = ""
+type = "vmess"
+server = "hkbn-500m-02.yuntijiasu.cloud"
+port = 18280
+uuid = "b4063130-2621-3834-b62b-88bcce19b924"
+alter_id = 0
+network = "tcp"
+tls = false
+
+[[routes.Outs]]
+listen = ""
+type = "vmess"
+server = "hgc-500m-01.yuntijiasu.cloud"
+port = 21555
+uuid = "b4063130-2621-3834-b62b-88bcce19b924"
+alter_id = 0
+network = "tcp"
+tls = false
+
+[[routes.Outs]]
+listen = ""
+type = "ssr"
+server = "icable-500m-01.yuntijiasu.cloud"
+port = 57420
+password = "4wMNkIVsgybXfA2u"
+cipher = "chacha20-ietf"
+protocol = "auth_aes128_sha1"
+protocol_param = "206018:NBLRtS8fuklYjVd3"
+obfs = "plain"
+obfs_param = ""
+
+[[routes.Outs]]
+listen = ""
+type = "vmess"
+server = "hgc-500m-02.yuntijiasu.cloud"
+port = 21937
+uuid = "b4063130-2621-3834-b62b-88bcce19b924"
+alter_id = 0
+network = "tcp"
+tls = false
+
 
 [[routes]]
 rules = ["*"]
 
 [[routes.Outs]]
-listen = ""
 type = "direct"
 EOF
 
