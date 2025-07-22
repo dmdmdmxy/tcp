@@ -237,7 +237,6 @@ rules = [
   "geosite:disney",
   "geosite:hulu",
 
-
 [[routes.Outs]]
 listen = ""
 type = "ss"
