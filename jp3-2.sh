@@ -313,8 +313,7 @@ rules = [
   "geosite:netflix",
   "geosite:disney",
   "geosite:hulu",
-
-
+]
 [[routes.Outs]]
 listen = ""
 type = "ss"
@@ -398,7 +397,6 @@ rules = [
   "domain:research.temu.com",
   "domain:qa.temu.com",
 
-#流媒体
   "domain:nhk.jp",
   "domain:nhk.or.jp",
   "domain:dmm-extension.com",
@@ -429,7 +427,6 @@ rules = [
   "domain:videopass.jp",
   "domain:d2lmsumy47c8as.cloudfront.net",
 ]
-
 [[routes.Outs]]
 listen = ""
 type = "ssr"
@@ -443,7 +440,6 @@ obfs = "plain"
 obfs_param = ""
 
 
-# 谷歌学术
 [[routes]]
 rules = [
  "domain:scholar.google.com",
@@ -677,69 +673,53 @@ rules = [
   "domain-suffix:zlibcdn2.com",
   "domain-suffix:zotero.org",
 ]
+[[routes.Outs]]
+listen="" 
+type="ssr"
+server="hkbn-500m-01.yuntijiasu.cloud"
+port=29981
+password="4wMNkIVsgybXfA2u"
+cipher="chacha20-ietf"
+obfs="plain"
+obfs_param=""
+protocol="auth_aes128_sha1"
+protocol_param="206018:NBLRtS8fuklYjVd3"
 
 [[routes.Outs]]
-listen = ""
-type = "vmess"
-server = "hkt-1g-03.yuntijiasu.cloud"
-port = 18280
-uuid = "b4063130-2621-3834-b62b-88bcce19b924"
-alter_id = 0
-network = "tcp"
-tls = false
+listen="" 
+type="ssr"
+server="hkbn-500m-02.yuntijiasu.cloud"
+port=29982
+password="4wMNkIVsgybXfA2u"
+cipher="chacha20-ietf"
+obfs="plain"
+obfs_param=""
+protocol="auth_aes128_sha1"
+protocol_param="206018:NBLRtS8fuklYjVd3"
 
 [[routes.Outs]]
-listen = ""
-type = "vmess"
-server = "hkbn-500m-01.yuntijiasu.cloud"
-port = 18280
-uuid = "b4063130-2621-3834-b62b-88bcce19b924"
-alter_id = 0
-network = "tcp"
-tls = false
+listen="" 
+type="ssr"
+server="hgc-500m-01.yuntijiasu.cloud"
+port=29983
+password="4wMNkIVsgybXfA2u"
+cipher="chacha20-ietf"
+obfs="plain"
+obfs_param=""
+protocol="auth_aes128_sha1"
+protocol_param="206018:NBLRtS8fuklYjVd3"
 
 [[routes.Outs]]
-listen = ""
-type = "vmess"
-server = "hkbn-500m-02.yuntijiasu.cloud"
-port = 18280
-uuid = "b4063130-2621-3834-b62b-88bcce19b924"
-alter_id = 0
-network = "tcp"
-tls = false
-
-[[routes.Outs]]
-listen = ""
-type = "vmess"
-server = "hgc-500m-01.yuntijiasu.cloud"
-port = 21555
-uuid = "b4063130-2621-3834-b62b-88bcce19b924"
-alter_id = 0
-network = "tcp"
-tls = false
-
-[[routes.Outs]]
-listen = ""
-type = "ssr"
-server = "icable-500m-01.yuntijiasu.cloud"
-port = 57420
-password = "4wMNkIVsgybXfA2u"
-cipher = "chacha20-ietf"
-protocol = "auth_aes128_sha1"
-protocol_param = "206018:NBLRtS8fuklYjVd3"
-obfs = "plain"
-obfs_param = ""
-
-[[routes.Outs]]
-listen = ""
-type = "vmess"
-server = "hgc-500m-02.yuntijiasu.cloud"
-port = 21937
-uuid = "b4063130-2621-3834-b62b-88bcce19b924"
-alter_id = 0
-network = "tcp"
-tls = false
-
+listen="" 
+type="ssr"
+server="hgc-500m-02.yuntijiasu.cloud"
+port=29984
+password="4wMNkIVsgybXfA2u"
+cipher="chacha20-ietf"
+obfs="plain"
+obfs_param=""
+protocol="auth_aes128_sha1"
+protocol_param="206018:NBLRtS8fuklYjVd3"
 
 [[routes]]
 rules = ["*"]
