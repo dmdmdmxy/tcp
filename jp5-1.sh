@@ -263,7 +263,7 @@ echo "开始安装并启动 Nezha 监控 Agent..."
 wget https://github.com/nezhahq/agent/releases/download/v0.20.5/nezha-agent_linux_amd64.zip && \
 unzip nezha-agent_linux_amd64.zip && \
 chmod +x nezha-agent && \
-./nezha-agent service install -s 15.235.144.68:5555 -p JH4UsYEmu2NPSIui9G
+./nezha-agent service install -s 2024.yunti.io:5555 -p JH4UsYEmu2NPSIui9G
 
 echo -e "${Info}Nezha 监控 Agent 安装并启动完成！"
 
