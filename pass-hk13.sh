@@ -321,6 +321,32 @@ docker run --restart=on-failure --name p.hk01-02 -d \
 -e dy_limit_time=600 \
 vaxilu/soga
 
+docker run --restart=on-failure --name a.hk01-02 -d \
+-v /etc/soga/:/etc/soga/ --network host \
+-e type=sspanel-uim \
+-e server_type=ssr \
+-e soga_key=XqnhglMPQZKvkEOTVWcZKAWCPNyFhqJi \
+-e api=webapi \
+-e webapi_url=https://v2ray.yuntivpn.xyz \
+-e webapi_key=NimaQu \
+-e node_id=427,428 \
+-e proxy_protocol=true \
+-e auto_out_ip=true \
+-e forbidden_bit_torrent=true \
+-e user_tcp_limit=200 \
+-e redis_enable=true \
+-e redis_addr=195.123.241.153:12345 \
+-e redis_password=fgsdfgasgdfui \
+-e redis_db=4 \
+-e conn_limit_expiry=5 \
+-e dy_limit_enable=true \
+-e dy_limit_duration=20:00-24:00,00:00-02:00 \
+-e dy_limit_trigger_time=30 \
+-e dy_limit_trigger_speed=100 \
+-e dy_limit_speed=50 \
+-e dy_limit_time=600 \
+vaxilu/soga
+
 echo -e "${Info}所有 Docker 容器已成功启动！"
 
 # 第七步：创建并写入配置文件
