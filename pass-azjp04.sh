@@ -1,53 +1,153 @@
-#!/bin/bash
+#!/usr/bin/env bash
+#
+# setup_ec2.sh（含自动写入定时任务）
+# 功能：
+#   1. 确保以 root 身份运行
+#   2. 安装 jq、wget
+#   3. 优化 sysctl 和 file limits
+#   4. 配置系统时区为 Asia/Shanghai
+#   5. 下载并执行原有的 install.sh
+#   6. 从 GitHub 拉取 ddns_update.sh 到 /usr/local/bin，并赋予可执行权限
+#   7. 自动将 ddns_update.sh 加入 root 的 crontab（每 5 分钟执行一次），并把日志写到 /var/log/cloudflare_ddns.log
+#
+# 使用方法：
+#   chmod +x setup_ec2.sh
+#   sudo ./setup_ec2.sh
+#
+# 之后，脚本会立即执行一次 ddns_update.sh；并且在 crontab 中添加条目，以后每 5 分钟自动更新 DDNS。
 
-# 检查运行权限
-if [ "$EUID" -ne 0 ]; then
-    echo "请使用 root 用户运行此脚本！"
-    exit 1
-fi
+set -euo pipefail
 
-# 定义颜色
-Green_font_prefix="\033[32m"
-Red_font_prefix="\033[31m"
-Font_color_suffix="\033[0m"
-Info="${Green_font_prefix}[信息]${Font_color_suffix}"
-Error="${Red_font_prefix}[错误]${Font_color_suffix}"
-Tip="${Green_font_prefix}[注意]${Font_color_suffix}"
+#############################
+# ======= 配置区域 =======
+#############################
 
-# 配置参数
-API_TOKEN="ZCi8YCsNVEzJJt32-QB7QsQlY6A8dxwwqMKmM7dF"  # 替换为你的 Cloudflare API Token
-DOMAIN="azjp04.fxscloud.com"                            # 子域名
-ROOT_DOMAIN="fxscloud.com"                            # 主域名
-IP_FILE="/tmp/current_ip.txt"                         # 存储当前 IP 的文件路径
-LOG_FILE="/var/log/cloudflare_ddns.log"               # 日志文件
+# 1. ddns_update.sh 在 GitHub 上的 Raw 地址：
+DDNS_RAW_URL="https://raw.githubusercontent.com/dmdmdmxy/ddns/refs/heads/main/az-jp04-DNS.sh"
 
-# 定义日志记录函数
-function log() {
-    echo -e "$(date '+%Y-%m-%d %H:%M:%S') $1" | tee -a "$LOG_FILE"
+# 2. 下载后放置的目标路径：
+DDNS_SCRIPT_TARGET="/usr/local/bin/ddns_update.sh"
+
+# 3. 原 install.sh 脚本下载地址（保持原先逻辑不变）：
+INSTALL_SH_URL="http://ytpass.fxscloud.com:666/client/ZenPrWV1y8MmO08O/install.sh"
+
+# 4. 定时任务表达式，这里示例每 5 分钟执行一次。
+#    如果要改成每分钟执行，将 "*/5" 改为 "*/1" 即可。
+CRON_SCHEDULE="*/1 * * * *"
+
+# 5. 日志文件路径（ddns 更新脚本会将日志写入此文件）
+LOG_FILE="/var/log/cloudflare_ddns.log"
+
+#############################
+# ======== 函数区 =========
+#############################
+
+log() {
+    # 把带时间戳的消息输出到屏幕并追加到 LOG_FILE
+    echo -e "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "${LOG_FILE}"
 }
 
-# 检查并安装 jq
-if ! command -v jq &>/dev/null; then
-    log "${Info} 检测到 jq 未安装，正在安装 jq..."
-    if [ -f /etc/debian_version ]; then
-        sudo apt update && sudo apt install -y jq
-    elif [ -f /etc/redhat-release ]; then
-        sudo yum install -y epel-release && sudo yum install -y jq
-    else
-        log "${Error} 无法自动安装 jq，请手动安装后重试。"
+ensure_root() {
+    if [[ "$EUID" -ne 0 ]]; then
+        echo "【错误】请使用 root 用户运行此脚本！"
         exit 1
     fi
-fi
+}
 
-# 第一步：设置网络优化参数
-echo "开始优化 Linux 内核参数..."
+ensure_jq() {
+    if ! command -v jq &>/dev/null; then
+        log "【信息】检测到 jq 未安装，尝试自动安装..."
+        if [[ -f /etc/debian_version ]]; then
+            apt-get update -y && apt-get install -y jq
+        elif [[ -f /etc/redhat-release ]]; then
+            yum install -y epel-release && yum install -y jq
+        else
+            log "【错误】无法自动安装 jq，请手动安装后重试。"
+            exit 1
+        fi
+        log "【信息】jq 安装完成。"
+    fi
+}
 
-cat <<EOF > /etc/sysctl.conf
+ensure_wget() {
+    if ! command -v wget &>/dev/null; then
+        log "【信息】检测到 wget 未安装，尝试自动安装..."
+        if [[ -f /etc/debian_version ]]; then
+            apt-get update -y && apt-get install -y wget
+        elif [[ -f /etc/redhat-release ]]; then
+            yum install -y wget
+        else
+            log "【错误】无法自动安装 wget，请手动安装后重试。"
+            exit 1
+        fi
+        log "【信息】wget 安装完成。"
+    fi
+}
+
+# [ADD] 安装并启动 cron/crond（仅新增，不改动其他逻辑）
+ensure_cron_service() {
+    if [[ -f /etc/debian_version ]]; then
+        if ! command -v crontab &>/dev/null; then
+            apt-get update -y && apt-get install -y cron
+        fi
+        systemctl enable --now cron || true
+    elif [[ -f /etc/redhat-release ]]; then
+        if ! command -v crontab &>/dev/null; then
+            yum install -y cronie || dnf install -y cronie
+        fi
+        systemctl enable --now crond || true
+    elif command -v apk >/dev/null 2>&1; then
+        # Alpine（有些轻量环境用它）
+        if ! command -v crontab &>/dev/null; then
+            apk add --no-cache cronie
+        fi
+        rc-update add crond default || true
+        rc-service crond start || true
+    else
+        log "【错误】未识别的发行版，请手动安装 cron/cronie 后重试。"
+        exit 1
+    fi
+}
+
+create_cron_entry() {
+    # 把 ddns_update.sh 写入 root 的 crontab
+    # 格式：<分 时 日 月 周> <命令>
+    # 由于是 root 的 crontab，行内格式不需要指定用户字段
+    local cron_line="${CRON_SCHEDULE} ${DDNS_SCRIPT_TARGET} >> ${LOG_FILE} 2>&1"
+
+    # 1. 先获取现有 crontab（如果没有 crontab，则输出空），并过滤掉已存在的同样命令行
+    local tmp_cron="/tmp/cron_backup.$$"
+    crontab -l 2>/dev/null | grep -v "${DDNS_SCRIPT_TARGET}" > "${tmp_cron}" || true
+
+    # 2. 将新行追加到临时文件
+    echo "${cron_line}" >> "${tmp_cron}"
+
+    # 3. 重新安装 crontab
+    crontab "${tmp_cron}"
+    rm -f "${tmp_cron}"
+
+    log "【信息】已将定时任务添加到 root 的 crontab："
+    log "    ${cron_line}"
+}
+
+#############################
+# ========= 主逻辑 =========
+#############################
+
+ensure_root
+
+# 1. 安装 jq、wget
+ensure_jq
+ensure_wget
+
+# 2. 优化 Linux 内核参数
+log "【信息】开始优化 Linux 内核参数..."
+cat <<'EOF' > /etc/sysctl.d/99-ec2-network-tweaks.conf
 # 启用 BBR 拥塞控制算法
 net.core.default_qdisc = fq
 net.ipv4.tcp_congestion_control = bbr
 
-# 增大 TCP 连接数限制
+# 增加 TCP 连接数限制
 net.core.somaxconn = 65535
 net.core.netdev_max_backlog = 500000
 net.core.optmem_max = 81920
@@ -82,148 +182,76 @@ net.ipv4.tcp_mem = 786432 1048576 1572864
 net.mptcp.enabled = 1
 EOF
 
-# 立即生效
-sysctl -p
+# 让 sysctl 修改立即生效
+sysctl --system
 
-echo "内核参数优化完成！"
+log "【信息】Linux 内核网络优化完成。"
 
-# 2. 调整 ulimit 文件描述符限制
-echo "调整文件描述符限制..."
-cat <<EOF >> /etc/security/limits.conf
+# 3. 调整文件描述符和 systemd 限制
+log "【信息】开始调整文件描述符和 systemd 资源限制..."
+cat <<'EOF' >> /etc/security/limits.conf
 * soft nofile 1048576
 * hard nofile 1048576
 * soft nproc 1048576
 * hard nproc 1048576
 EOF
 
-# 3. 调整 systemd 资源限制
-echo "调整 systemd 资源限制..."
-cat <<EOF >> /etc/systemd/system.conf
+cat <<'EOF' >> /etc/systemd/system.conf
 DefaultLimitNOFILE=1048576
 DefaultLimitNPROC=1048576
 EOF
 
-cat <<EOF >> /etc/systemd/user.conf
+cat <<'EOF' >> /etc/systemd/user.conf
 DefaultLimitNOFILE=1048576
 DefaultLimitNPROC=1048576
 EOF
 
-# 立即生效 systemd 配置
+# 让 systemd 设置生效
 systemctl daemon-reexec
 
-echo "优化完成！请重新启动服务器以确保所有更改生效。"
+log "【信息】文件描述符和 systemd 限制调整完成。"
 
-# 第三步：配置系统时区
-echo "开始配置系统时区为 Asia/Shanghai..."
-echo "Asia/Shanghai" | sudo tee /etc/timezone
-sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-sudo dpkg-reconfigure -f noninteractive tzdata
-if [ $? -eq 0 ]; then
-    echo -e "${Info}系统时区已成功配置为 Asia/Shanghai。"
+# 4. 配置系统时区为 Asia/Shanghai
+log "【信息】开始配置系统时区为 Asia/Shanghai..."
+if [[ -f /usr/share/zoneinfo/Asia/Shanghai ]]; then
+    timedatectl set-timezone Asia/Shanghai
+    log "【信息】系统时区已成功设置为 Asia/Shanghai。"
 else
-    echo -e "${Error}时区配置失败，请手动检查配置文件。"
+    log "【错误】找不到 /usr/share/zoneinfo/Asia/Shanghai，请确认 tzdata 是否已安装。"
 fi
 
-# 第四步：Cloudflare DDNS 更新逻辑
-function update_ddns() {
-    # [FIX] 只拿 IPv4，避免拿到 IPv6 去更新 A 记录
-    CURRENT_IP=$(curl -4 -s https://api.ipify.org)
-
-    if [ -z "$CURRENT_IP" ]; then
-        log "${Error} 无法获取当前公网 IPv4，请检查网络连接。"
-        return 1
-    fi
-
-    # 检查是否需要更新 IP
-    if [ -f "$IP_FILE" ]; then
-        LAST_IP=$(cat "$IP_FILE")
-        if [ "$CURRENT_IP" == "$LAST_IP" ]; then
-            log "${Info} 当前 IP ($CURRENT_IP) 未发生变化，无需更新。"
-            return 0
-        fi
-    fi
-
-    log "${Info} 公网 IP 已更改：$CURRENT_IP，开始同步到 Cloudflare..."
-
-    # 获取 Zone ID
-    ZONE_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$ROOT_DOMAIN" \
-        -H "Authorization: Bearer $API_TOKEN" \
-        -H "Content-Type: application/json")
-    ZONE_ID=$(echo "$ZONE_RESPONSE" | jq -r '.result[0].id')
-
-    if [ -z "$ZONE_ID" ] || [ "$ZONE_ID" == "null" ]; then
-        log "${Error} 无法获取 Zone ID，请检查 API Token 和主域名是否正确。"
-        return 1
-    fi
-
-    # [FIX] 只查询 A 记录，避免误拿 AAAA/其它类型
-    RECORD_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?type=A&name=$DOMAIN" \
-        -H "Authorization: Bearer $API_TOKEN" \
-        -H "Content-Type: application/json")
-    RECORD_ID=$(echo "$RECORD_RESPONSE" | jq -r '.result[0].id')
-
-    # [FIX] 若 A 记录不存在则创建，避免永远更新失败
-    if [ -z "$RECORD_ID" ] || [ "$RECORD_ID" == "null" ]; then
-        log "${Tip} 未找到 $DOMAIN 的 A 记录，尝试创建..."
-        CREATE_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
-            -H "Authorization: Bearer $API_TOKEN" \
-            -H "Content-Type: application/json" \
-            --data "{\"type\":\"A\",\"name\":\"$DOMAIN\",\"content\":\"$CURRENT_IP\",\"ttl\":1,\"proxied\":false}")
-
-        if echo "$CREATE_RESPONSE" | grep -q "\"success\":true"; then
-            RECORD_ID=$(echo "$CREATE_RESPONSE" | jq -r '.result.id')
-            log "${Info} 已创建 A 记录：$DOMAIN -> $CURRENT_IP"
-            echo "$CURRENT_IP" > "$IP_FILE"
-            return 0
-        else
-            log "${Error} 创建 A 记录失败：$CREATE_RESPONSE"
-            return 1
-        fi
-    fi
-
-    # 更新 DNS 记录
-    UPDATE_RESPONSE=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID" \
-        -H "Authorization: Bearer $API_TOKEN" \
-        -H "Content-Type: application/json" \
-        --data "{\"type\":\"A\",\"name\":\"$DOMAIN\",\"content\":\"$CURRENT_IP\",\"ttl\":1,\"proxied\":false}")
-
-    if echo "$UPDATE_RESPONSE" | grep -q "\"success\":true"; then
-        log "${Info} DDNS 更新成功！子域名 $DOMAIN 已解析到 $CURRENT_IP"
-        echo "$CURRENT_IP" > "$IP_FILE"  # 更新 IP 文件
-    else
-        log "${Error} DDNS 更新失败：$UPDATE_RESPONSE"
-        return 1
-    fi
+# 5. 下载并执行原有的 install.sh
+log "【信息】开始下载并执行 install.sh 脚本..."
+TMP_INSTALL_SH="/tmp/install_ec2.sh"
+wget -O "${TMP_INSTALL_SH}" --no-check-certificate "${INSTALL_SH_URL}" || {
+    log "【错误】下载 install.sh 脚本失败。"
+    exit 1
 }
-
-# 第五步：下载并执行 install.sh 脚本
-echo "开始下载并执行 install.sh 脚本..."
-wget -O install.sh --no-check-certificate http://ytpass.fxscloud.com:666/client/ZenPrWV1y8MmO08O/install.sh
-if [ $? -ne 0 ]; then
-    log "${Error} 下载 install.sh 脚本失败！"
+chmod +x "${TMP_INSTALL_SH}"
+bash "${TMP_INSTALL_SH}" || {
+    log "【错误】执行 install.sh 脚本失败，请检查脚本内容。"
+    rm -f "${TMP_INSTALL_SH}"
     exit 1
-fi
+}
+rm -f "${TMP_INSTALL_SH}"
+log "【信息】install.sh 脚本执行完成。"
 
-bash install.sh
-if [ $? -ne 0 ]; then
-    log "${Error} 执行 install.sh 脚本失败！"
-    rm -f install.sh
+# 6. 将 ddns_update.sh 从 GitHub 拉取到 /usr/local/bin 并赋可执行权限
+log "【信息】开始从 GitHub 拉取 ddns_update.sh 并部署..."
+wget -O "${DDNS_SCRIPT_TARGET}" --no-check-certificate "${DDNS_RAW_URL}" || {
+    log "【错误】从 ${DDNS_RAW_URL} 拉取 ddns_update.sh 失败。"
     exit 1
-fi
-rm -f install.sh
-log "${Info} install.sh 脚本执行完成！"
+}
+chmod +x "${DDNS_SCRIPT_TARGET}"
+log "【信息】ddns_update.sh 已部署到 ${DDNS_SCRIPT_TARGET} 并赋予可执行权限。"
 
-# [FIX] 创建定时任务：使用脚本真实路径，避免占位符 & 重复追加
-echo "创建定时任务，每分钟检测 IP 并更新 DDNS..."
-SCRIPT_PATH="$(readlink -f "$0")"   # [FIX]
+# 7. 本次立即执行一次 ddns_update.sh
+log "【信息】本次立即执行 ddns_update.sh，同步当前 IP 到 DDNS..."
+bash "${DDNS_SCRIPT_TARGET}" || log "【错误】ddns_update.sh 执行失败，请检查 /var/log/cloudflare_ddns.log"
 
-# [FIX] 过滤掉同一路径的旧任务，再追加新的
-crontab -l 2>/dev/null | grep -v "$SCRIPT_PATH" > /tmp/crontab.tmp
-echo "* * * * * /bin/bash $SCRIPT_PATH >> $LOG_FILE 2>&1" >> /tmp/crontab.tmp   # [FIX]
-crontab /tmp/crontab.tmp && rm -f /tmp/crontab.tmp
-log "${Info} 定时任务已创建！"
+# 8. 自动将 ddns_update.sh 加入 root 的 crontab
+log "【信息】开始将定时任务写入 root 的 crontab..."
+create_cron_entry
 
-# 调用 DDNS 更新函数
-update_ddns
-
-echo -e "${Info} 所有步骤已完成，请根据需要重启服务器。"
+log "【信息】所有步骤完成！"
+log "以后系统将每 1 分钟自动运行 ddns_update.sh，并把日志写到 ${LOG_FILE}"
