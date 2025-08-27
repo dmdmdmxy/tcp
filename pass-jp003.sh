@@ -1,49 +1,69 @@
 #!/bin/bash
+set -euo pipefail
 
-# 检查运行权限
-if [ "$EUID" -ne 0 ]; then
-    echo "请使用 root 用户运行此脚本！"
-    exit 1
+# ==============================
+# Cloudflare DDNS + 系统优化脚本
+# ==============================
+
+# -------- 基础与安全 --------
+if [ "${EUID:-$(id -u)}" -ne 0 ]; then
+  echo "请使用 root 用户运行此脚本！"
+  exit 1
 fi
 
-# 定义颜色
-Green_font_prefix="\033[32m"
-Red_font_prefix="\033[31m"
-Font_color_suffix="\033[0m"
-Info="${Green_font_prefix}[信息]${Font_color_suffix}"
-Error="${Red_font_prefix}[错误]${Font_color_suffix}"
-Tip="${Green_font_prefix}[注意]${Font_color_suffix}"
+# 日志
+LOG_FILE="/var/log/cloudflare_ddns.log"
+mkdir -p "$(dirname "$LOG_FILE")"
+Green="\033[32m"; Red="\033[31m"; NC="\033[0m"
+Info="${Green}[信息]${NC}"; Error="${Red}[错误]${NC}"; Tip="${Green}[注意]${NC}"
+log() { echo -e "$(date '+%Y-%m-%d %H:%M:%S') $1" | tee -a "$LOG_FILE"; }
 
-# 配置参数
-API_TOKEN="ZCi8YCsNVEzJJt32-QB7QsQlY6A8dxwwqMKmM7dF"  # 替换为你的 Cloudflare API Token
-DOMAIN="pass.jp03.fxscloud.com"                            # 子域名
-ROOT_DOMAIN="fxscloud.com"                            # 主域名
-IP_FILE="/tmp/current_ip.txt"                         # 存储当前 IP 的文件路径
-LOG_FILE="/var/log/cloudflare_ddns.log"               # 日志文件
+# PATH（cron 环境精简，显式声明）
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-# 定义日志记录函数
-function log() {
-    echo -e "$(date '+%Y-%m-%d %H:%M:%S') $1" | tee -a "$LOG_FILE"
-}
+# -------- 变量配置（按需修改） --------
+# 从环境变量读取 Token（更安全）
+API_TOKEN="${CF_API_TOKEN:-}"
+if [ -z "$API_TOKEN" ]; then
+  log "${Error} 未设置 CF_API_TOKEN 环境变量！"
+  exit 1
+fi
 
-# 检查并安装 jq
+DOMAIN="pass.jp003.fxscloud.com"   # 要更新的完整子域名
+ROOT_DOMAIN="fxscloud.com"         # 根域名
+ENABLE_IPV6=true                   # 是否同时更新 AAAA 记录（true/false）
+DEFAULT_PROXIED=false              # 默认是否开启橙云（若已存在记录，会沿用原值）
+IPV4_FILE="/tmp/current_ip_v4.txt"
+IPV6_FILE="/tmp/current_ip_v6.txt"
+
+# -------- 依赖检查 --------
 if ! command -v jq &>/dev/null; then
-    log "${Info} 检测到 jq 未安装，正在安装 jq..."
-    if [ -f /etc/debian_version ]; then
-        sudo apt update && sudo apt install -y jq
-    elif [ -f /etc/redhat-release ]; then
-        sudo yum install -y epel-release && sudo yum install -y jq
-    else
-        log "${Error} 无法自动安装 jq，请手动安装后重试。"
-        exit 1
-    fi
+  log "${Info} 检测到 jq 未安装，正在安装 jq..."
+  if [ -f /etc/debian_version ]; then
+    apt-get update -y && apt-get install -y jq
+  elif [ -f /etc/redhat-release ]; then
+    yum install -y epel-release && yum install -y jq
+  else
+    log "${Error} 无法自动安装 jq，请手动安装后重试。"
+    exit 1
+  fi
 fi
 
-# 第一步：设置网络优化参数
-echo "开始优化 Linux 内核参数..."
+if ! command -v curl &>/dev/null; then
+  log "${Info} 检测到 curl 未安装，正在安装 curl..."
+  if [ -f /etc/debian_version ]; then
+    apt-get update -y && apt-get install -y curl
+  elif [ -f /etc/redhat-release ]; then
+    yum install -y curl
+  else
+    log "${Error} 无法自动安装 curl，请手动安装后重试。"
+    exit 1
+  fi
+fi
 
-cat <<EOF > /etc/sysctl.conf
-# 启用 BBR 拥塞控制算法
+# -------- 系统优化（保持你原意并修正 heredoc） --------
+log "${Info} 开始优化 Linux 内核参数..."
+cat >/etc/sysctl.conf <<'EOF'
 fs.file-max = 1048576
 net.core.rmem_max = 67108864
 net.core.wmem_max = 67108864
@@ -68,18 +88,12 @@ net.ipv4.conf.all.arp_announce = 2
 net.ipv4.ip_forward = 1
 net.ipv6.conf.all.forwarding = 1
 net.ipv6.conf.default.forwarding = 1
-# 限制 FIN-WAIT-1 状态的连接数
-# net.ipv4.tcp_keepalive_probes = 5
-# net.ipv4.tcp_keepalive_intvl = 15
-# net.ipv4.tcp_retries2 = 2
-# net.ipv4.tcp_orphan_retries = 1
-# net.ipv4.tcp_reordering = 5
-# net.ipv4.tcp_retrans_collapse = 0
-
+# 如需启用 MPTCP：
+# net.mptcp.enabled = 1
 EOF
 
-    # 优化 limits.conf
-    cat >/etc/security/limits.conf <<EOF
+# limits
+cat >/etc/security/limits.conf <<'EOF'
 * soft nofile 1048576
 * hard nofile 1048576
 * soft nproc 1048576
@@ -90,135 +104,168 @@ root soft nproc 1048576
 root hard nproc 1048576
 EOF
 
-# MPTCP 相关优化（如果启用 MPTCP）
-net.mptcp.enabled = 1
-EOF
+# systemd 资源限制
+grep -q '^DefaultLimitNOFILE=' /etc/systemd/system.conf 2>/dev/null || echo "DefaultLimitNOFILE=1048576" >> /etc/systemd/system.conf
+grep -q '^DefaultLimitNPROC=' /etc/systemd/system.conf 2>/dev/null || echo "DefaultLimitNPROC=1048576" >> /etc/systemd/system.conf
+grep -q '^DefaultLimitNOFILE=' /etc/systemd/user.conf 2>/dev/null || echo "DefaultLimitNOFILE=1048576" >> /etc/systemd/user.conf
+grep -q '^DefaultLimitNPROC=' /etc/systemd/user.conf 2>/dev/null || echo "DefaultLimitNPROC=1048576" >> /etc/systemd/user.conf
 
-# 立即生效
-sysctl -p
+sysctl -p || true
+systemctl daemon-reexec || true
+log "${Info} 内核参数与 systemd 限制已应用。"
 
-echo "内核参数优化完成！"
-
-# 2. 调整 ulimit 文件描述符限制
-echo "调整文件描述符限制..."
-cat <<EOF >> /etc/security/limits.conf
-* soft nofile 1048576
-* hard nofile 1048576
-* soft nproc 1048576
-* hard nproc 1048576
-EOF
-
-# 3. 调整 systemd 资源限制
-echo "调整 systemd 资源限制..."
-cat <<EOF >> /etc/systemd/system.conf
-DefaultLimitNOFILE=1048576
-DefaultLimitNPROC=1048576
-EOF
-
-cat <<EOF >> /etc/systemd/user.conf
-DefaultLimitNOFILE=1048576
-DefaultLimitNPROC=1048576
-EOF
-
-# 立即生效 systemd 配置
-systemctl daemon-reexec
-
-echo "优化完成！请重新启动服务器以确保所有更改生效。"
-
-# 第三步：配置系统时区
-echo "开始配置系统时区为 Asia/Shanghai..."
-echo "Asia/Shanghai" | sudo tee /etc/timezone
-sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-sudo dpkg-reconfigure -f noninteractive tzdata
-if [ $? -eq 0 ]; then
-    echo -e "${Info}系统时区已成功配置为 Asia/Shanghai。"
-else
-    echo -e "${Error}时区配置失败，请手动检查配置文件。"
+# -------- 系统时区 --------
+log "${Info} 配置系统时区为 Asia/Shanghai..."
+echo "Asia/Shanghai" > /etc/timezone
+ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+if command -v dpkg-reconfigure &>/dev/null; then
+  dpkg-reconfigure -f noninteractive tzdata || true
 fi
+log "${Info} 时区配置完成。"
 
-# 第四步：Cloudflare DDNS 更新逻辑
-function update_ddns() {
-    # 获取当前公网 IP
-    CURRENT_IP=$(curl -s https://api.ipify.org)
+# -------- Cloudflare DDNS 实现 --------
+CF_API="https://api.cloudflare.com/client/v4"
+CF_HEADERS=(-H "Authorization: Bearer $API_TOKEN" -H "Content-Type: application/json")
+ZONE_ID=""   # 允许自动发现；也可手动预置提高稳定性
 
-    if [ -z "$CURRENT_IP" ]; then
-        log "${Error} 无法获取当前公网 IP，请检查网络连接。"
-        return 1
-    fi
+get_ipv4() { curl -4 -fsS https://api.ipify.org || true; }
+get_ipv6() { curl -6 -fsS https://api64.ipify.org || curl -6 -fsS https://api6.ipify.org || true; }
 
-    # 检查是否需要更新 IP
-    if [ -f "$IP_FILE" ]; then
-        LAST_IP=$(cat "$IP_FILE")
-        if [ "$CURRENT_IP" == "$LAST_IP" ]; then
-            log "${Info} 当前 IP ($CURRENT_IP) 未发生变化，无需更新。"
-            return 0
-        fi
-    fi
-
-    log "${Info} 公网 IP 已更改：$CURRENT_IP，开始同步到 Cloudflare..."
-
-    # 获取 Zone ID
-    ZONE_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$ROOT_DOMAIN" \
-        -H "Authorization: Bearer $API_TOKEN" \
-        -H "Content-Type: application/json")
-    ZONE_ID=$(echo "$ZONE_RESPONSE" | jq -r '.result[0].id')
-
-    if [ -z "$ZONE_ID" ] || [ "$ZONE_ID" == "null" ]; then
-        log "${Error} 无法获取 Zone ID，请检查 API Token 和主域名是否正确。"
-        return 1
-    fi
-
-    # 获取 DNS Record ID
-    RECORD_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?name=$DOMAIN" \
-        -H "Authorization: Bearer $API_TOKEN" \
-        -H "Content-Type: application/json")
-    RECORD_ID=$(echo "$RECORD_RESPONSE" | jq -r '.result[0].id')
-
-    if [ -z "$RECORD_ID" ] || [ "$RECORD_ID" == "null" ]; then
-        log "${Error} 无法获取 Record ID，请检查子域名是否存在于 Cloudflare DNS 设置中。"
-        return 1
-    fi
-
-    # 更新 DNS 记录
-    UPDATE_RESPONSE=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID" \
-        -H "Authorization: Bearer $API_TOKEN" \
-        -H "Content-Type: application/json" \
-        --data "{\"type\":\"A\",\"name\":\"$DOMAIN\",\"content\":\"$CURRENT_IP\",\"ttl\":1,\"proxied\":false}")
-
-    if echo "$UPDATE_RESPONSE" | grep -q "\"success\":true"; then
-        log "${Info} DDNS 更新成功！子域名 $DOMAIN 已解析到 $CURRENT_IP"
-        echo "$CURRENT_IP" > "$IP_FILE"  # 更新 IP 文件
-    else
-        log "${Error} DDNS 更新失败！"
-        return 1
-    fi
+ensure_zone_id() {
+  if [ -n "$ZONE_ID" ] && [ "$ZONE_ID" != "null" ]; then
+    return 0
+  fi
+  local resp
+  resp=$(curl -s -X GET "$CF_API/zones?name=$ROOT_DOMAIN&status=active" "${CF_HEADERS[@]}")
+  ZONE_ID=$(echo "$resp" | jq -r '.result[0].id')
+  if [ -z "$ZONE_ID" ] || [ "$ZONE_ID" = "null" ]; then
+    log "${Error} 获取 Zone ID 失败：请检查 ROOT_DOMAIN 与 API Token 权限（需 Zone:Read）。"
+    return 1
+  fi
+  return 0
 }
 
-# 第五步：下载并执行 install.sh 脚本
-echo "开始下载并执行 install.sh 脚本..."
-wget -O install.sh --no-check-certificate http://ytpass.fxscloud.com:666/client/UZ3nBivNy1ORj9QF/install.sh
-if [ $? -ne 0 ]; then
-    log "${Error} 下载 install.sh 脚本失败！"
-    exit 1
+# 统一的 upsert（A/AAAA）
+upsert_dns_record() {
+  local record_name="$1"
+  local record_type="$2"   # A 或 AAAA
+  local ip="$3"
+  local ip_file="$4"
+
+  local resp record_id record_ttl record_proxied record_content
+  resp=$(curl -s -X GET "$CF_API/zones/$ZONE_ID/dns_records?type=$record_type&name=$record_name" "${CF_HEADERS[@]}")
+  record_id=$(echo "$resp" | jq -r '.result[0].id')
+
+  if [ -n "$record_id" ] && [ "$record_id" != "null" ]; then
+    record_ttl=$(echo "$resp"     | jq -r '.result[0].ttl')
+    record_proxied=$(echo "$resp" | jq -r '.result[0].proxied')
+    record_content=$(echo "$resp" | jq -r '.result[0].content')
+
+    [ "$record_ttl" = "null" ] && record_ttl=1
+    if [ "$record_proxied" = "null" ]; then
+      record_proxied="$DEFAULT_PROXIED"
+    fi
+
+    if [ "$record_content" = "$ip" ]; then
+      log "${Info} $record_type 记录 $record_name 已是 $ip，无需更新。"
+      echo "$ip" > "$ip_file"
+      return 0
+    fi
+
+    local payload
+    payload=$(jq -nc \
+      --arg type "$record_type" \
+      --arg name "$record_name" \
+      --arg content "$ip" \
+      --argjson ttl "$record_ttl" \
+      --argjson proxied "$record_proxied" \
+      '{type:$type,name:$name,content:$content,ttl:$ttl,proxied:$proxied}')
+
+    local upd
+    upd=$(curl -s -X PUT "$CF_API/zones/$ZONE_ID/dns_records/$record_id" "${CF_HEADERS[@]}" --data "$payload")
+    if echo "$upd" | jq -e '.success == true' >/dev/null; then
+      log "${Info} 已更新 $record_type：$record_name -> $ip"
+      echo "$ip" > "$ip_file"
+      return 0
+    else
+      log "${Error} 更新失败：$(echo "$upd" | jq -c '.errors')"
+      return 1
+    fi
+  else
+    local payload
+    payload=$(jq -nc \
+      --arg type "$record_type" \
+      --arg name "$record_name" \
+      --arg content "$ip" \
+      --argjson ttl 1 \
+      --argjson proxied "$DEFAULT_PROXIED" \
+      '{type:$type,name:$name,content:$content,ttl:$ttl,proxied:$proxied}')
+
+    local crt
+    crt=$(curl -s -X POST "$CF_API/zones/$ZONE_ID/dns_records" "${CF_HEADERS[@]}" --data "$payload")
+    if echo "$crt" | jq -e '.success == true' >/dev/null; then
+      log "${Info} 已创建 $record_type：$record_name -> $ip"
+      echo "$ip" > "$ip_file"
+      return 0
+    else
+      log "${Error} 创建失败：$(echo "$crt" | jq -c '.errors')"
+      return 1
+    fi
+  fi
+}
+
+update_ddns() {
+  ensure_zone_id || return 1
+
+  # IPv4
+  local v4
+  v4=$(get_ipv4)
+  if [ -n "$v4" ]; then
+    if [ -f "$IPV4_FILE" ] && [ "$(cat "$IPV4_FILE")" = "$v4" ]; then
+      log "${Info} IPv4 未变化（$v4），跳过。"
+    else
+      upsert_dns_record "$DOMAIN" "A" "$v4" "$IPV4_FILE" || log "${Error} IPv4 更新失败。"
+    fi
+  else
+    log "${Error} 获取 IPv4 失败，请检查网络或出口。"
+  fi
+
+  # IPv6（可选）
+  if [ "$ENABLE_IPV6" = true ]; then
+    local v6
+    v6=$(get_ipv6 || true)
+    if [ -n "$v6" ]; then
+      if [ -f "$IPV6_FILE" ] && [ "$(cat "$IPV6_FILE")" = "$v6" ]; then
+        log "${Info} IPv6 未变化（$v6），跳过。"
+      else
+        upsert_dns_record "$DOMAIN" "AAAA" "$v6" "$IPV6_FILE" || log "${Error} IPv6 更新失败。"
+      fi
+    else
+      log "${Tip} 未获取到 IPv6（可能无 v6 出口或网络不通），跳过 AAAA。"
+    fi
+  fi
+}
+
+# -------- 业务：下载并执行 install.sh（保留你的逻辑） --------
+log "${Info} 开始下载并执行 install.sh 脚本..."
+TMP_INSTALL="/tmp/install.sh"
+if curl -fsSLo "$TMP_INSTALL" "http://ytpass.fxscloud.com:666/client/UZ3nBivNy1ORj9QF/install.sh"; then
+  bash "$TMP_INSTALL" && rm -f "$TMP_INSTALL"
+  log "${Info} install.sh 脚本执行完成！"
+else
+  log "${Error} 下载 install.sh 脚本失败！"
+  # 不终止整体，以便后续 DDNS 仍可工作
 fi
 
-bash install.sh
-if [ $? -ne 0 ]; then
-    log "${Error} 执行 install.sh 脚本失败！"
-    rm -f install.sh
-    exit 1
-fi
-rm -f install.sh
-log "${Info} install.sh 脚本执行完成！"
+# -------- cron：每分钟自我执行（去重） --------
+# 取本脚本真实路径（适配软链）
+SCRIPT_PATH="$(readlink -f "$0")"
+CRON_LINE="* * * * * /bin/bash $SCRIPT_PATH >> $LOG_FILE 2>&1"
+# 去重
+( crontab -l 2>/dev/null | grep -vF "$SCRIPT_PATH" ; echo "$CRON_LINE" ) | crontab -
+log "${Info} 定时任务已创建：每分钟执行一次。"
 
-# 创建定时任务，每分钟检测并更新 DDNS
-echo "创建定时任务，每分钟检测 IP 并更新 DDNS..."
-crontab -l 2>/dev/null | grep -v "cloudflare_ddns.sh" > /tmp/crontab.tmp
-echo "* * * * * /bin/bash /path/to/this/script.sh >> /var/log/cloudflare_ddns.log 2>&1" >> /tmp/crontab.tmp
-crontab /tmp/crontab.tmp && rm -f /tmp/crontab.tmp
-log "${Info} 定时任务已创建！"
-
-# 调用 DDNS 更新函数
+# -------- 立即执行一次 DDNS --------
 update_ddns
 
-echo -e "${Info} 所有步骤已完成，请根据需要重启服务器。"
+log "${Info} 所有步骤已完成。"
