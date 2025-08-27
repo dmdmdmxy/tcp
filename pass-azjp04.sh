@@ -126,11 +126,11 @@ fi
 
 # 第四步：Cloudflare DDNS 更新逻辑
 function update_ddns() {
-    # 获取当前公网 IP
-    CURRENT_IP=$(curl -s https://api.ipify.org)
+    # [FIX] 只拿 IPv4，避免拿到 IPv6 去更新 A 记录
+    CURRENT_IP=$(curl -4 -s https://api.ipify.org)
 
     if [ -z "$CURRENT_IP" ]; then
-        log "${Error} 无法获取当前公网 IP，请检查网络连接。"
+        log "${Error} 无法获取当前公网 IPv4，请检查网络连接。"
         return 1
     fi
 
@@ -156,15 +156,29 @@ function update_ddns() {
         return 1
     fi
 
-    # 获取 DNS Record ID
-    RECORD_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?name=$DOMAIN" \
+    # [FIX] 只查询 A 记录，避免误拿 AAAA/其它类型
+    RECORD_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?type=A&name=$DOMAIN" \
         -H "Authorization: Bearer $API_TOKEN" \
         -H "Content-Type: application/json")
     RECORD_ID=$(echo "$RECORD_RESPONSE" | jq -r '.result[0].id')
 
+    # [FIX] 若 A 记录不存在则创建，避免永远更新失败
     if [ -z "$RECORD_ID" ] || [ "$RECORD_ID" == "null" ]; then
-        log "${Error} 无法获取 Record ID，请检查子域名是否存在于 Cloudflare DNS 设置中。"
-        return 1
+        log "${Tip} 未找到 $DOMAIN 的 A 记录，尝试创建..."
+        CREATE_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
+            -H "Authorization: Bearer $API_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "{\"type\":\"A\",\"name\":\"$DOMAIN\",\"content\":\"$CURRENT_IP\",\"ttl\":1,\"proxied\":false}")
+
+        if echo "$CREATE_RESPONSE" | grep -q "\"success\":true"; then
+            RECORD_ID=$(echo "$CREATE_RESPONSE" | jq -r '.result.id')
+            log "${Info} 已创建 A 记录：$DOMAIN -> $CURRENT_IP"
+            echo "$CURRENT_IP" > "$IP_FILE"
+            return 0
+        else
+            log "${Error} 创建 A 记录失败：$CREATE_RESPONSE"
+            return 1
+        fi
     fi
 
     # 更新 DNS 记录
@@ -177,7 +191,7 @@ function update_ddns() {
         log "${Info} DDNS 更新成功！子域名 $DOMAIN 已解析到 $CURRENT_IP"
         echo "$CURRENT_IP" > "$IP_FILE"  # 更新 IP 文件
     else
-        log "${Error} DDNS 更新失败！"
+        log "${Error} DDNS 更新失败：$UPDATE_RESPONSE"
         return 1
     fi
 }
@@ -199,10 +213,13 @@ fi
 rm -f install.sh
 log "${Info} install.sh 脚本执行完成！"
 
-# 创建定时任务，每分钟检测并更新 DDNS
+# [FIX] 创建定时任务：使用脚本真实路径，避免占位符 & 重复追加
 echo "创建定时任务，每分钟检测 IP 并更新 DDNS..."
-crontab -l 2>/dev/null | grep -v "cloudflare_ddns.sh" > /tmp/crontab.tmp
-echo "* * * * * /bin/bash /path/to/this/script.sh >> /var/log/cloudflare_ddns.log 2>&1" >> /tmp/crontab.tmp
+SCRIPT_PATH="$(readlink -f "$0")"   # [FIX]
+
+# [FIX] 过滤掉同一路径的旧任务，再追加新的
+crontab -l 2>/dev/null | grep -v "$SCRIPT_PATH" > /tmp/crontab.tmp
+echo "* * * * * /bin/bash $SCRIPT_PATH >> $LOG_FILE 2>&1" >> /tmp/crontab.tmp   # [FIX]
 crontab /tmp/crontab.tmp && rm -f /tmp/crontab.tmp
 log "${Info} 定时任务已创建！"
 
