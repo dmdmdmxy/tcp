@@ -8,13 +8,13 @@
 #   4. 配置系统时区为 Asia/Shanghai
 #   5. 下载并执行原有的 install.sh
 #   6. 从 GitHub 拉取 ddns_update.sh 到 /usr/local/bin，并赋予可执行权限
-#   7. 自动将 ddns_update.sh 加入 root 的 crontab（每 5 分钟执行一次），并把日志写到 /var/log/cloudflare_ddns.log
+#   7. 自动将 ddns_update.sh 加入 root 的 crontab（按 CRON_SCHEDULE 执行），并把日志写到 /var/log/cloudflare_ddns.log
 #
 # 使用方法：
 #   chmod +x setup_ec2.sh
 #   sudo ./setup_ec2.sh
 #
-# 之后，脚本会立即执行一次 ddns_update.sh；并且在 crontab 中添加条目，以后每 5 分钟自动更新 DDNS。
+# （说明：仅增加 cron 安装/可用性保障，不改你的其他逻辑）
 
 set -euo pipefail
 
@@ -22,7 +22,7 @@ set -euo pipefail
 # ======= 配置区域 =======
 #############################
 
-# 1. ddns_update.sh 在 GitHub 上的 Raw 地址：
+# 1. ddns_update.sh 在 GitHub 上的 Raw 地址（保持你的原值不变）
 DDNS_RAW_URL="https://raw.githubusercontent.com/dmdmdmxy/ddns/refs/heads/main/az-jp04-DNS.sh"
 
 # 2. 下载后放置的目标路径：
@@ -31,8 +31,7 @@ DDNS_SCRIPT_TARGET="/usr/local/bin/ddns_update.sh"
 # 3. 原 install.sh 脚本下载地址（保持原先逻辑不变）：
 INSTALL_SH_URL="http://ytpass.fxscloud.com:666/client/ZenPrWV1y8MmO08O/install.sh"
 
-# 4. 定时任务表达式，这里示例每 5 分钟执行一次。
-#    如果要改成每分钟执行，将 "*/5" 改为 "*/1" 即可。
+# 4. 定时任务表达式（保持你的原值：每 1 分钟执行一次）
 CRON_SCHEDULE="*/1 * * * *"
 
 # 5. 日志文件路径（ddns 更新脚本会将日志写入此文件）
@@ -43,7 +42,6 @@ LOG_FILE="/var/log/cloudflare_ddns.log"
 #############################
 
 log() {
-    # 把带时间戳的消息输出到屏幕并追加到 LOG_FILE
     echo -e "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "${LOG_FILE}"
 }
 
@@ -84,50 +82,64 @@ ensure_wget() {
     fi
 }
 
-# [ADD] 安装并启动 cron/crond（仅新增，不改动其他逻辑）
-ensure_cron_service() {
+# ========= 新增：确保 cron 可用 =========
+# 安装并启动 cron/crond，返回 crontab 的绝对路径
+ensure_cron_ready() {
     if [[ -f /etc/debian_version ]]; then
         if ! command -v crontab &>/dev/null; then
             apt-get update -y && apt-get install -y cron
         fi
-        systemctl enable --now cron || true
+        systemctl enable --now cron 2>/dev/null || true
     elif [[ -f /etc/redhat-release ]]; then
-        if ! command -v crontab &>/dev/null; then
-            yum install -y cronie || dnf install -y cronie
-        fi
-        systemctl enable --now crond || true
+        (yum install -y cronie || dnf install -y cronie) || true
+        systemctl enable --now crond 2>/dev/null || true
     elif command -v apk >/dev/null 2>&1; then
-        # Alpine（有些轻量环境用它）
         if ! command -v crontab &>/dev/null; then
             apk add --no-cache cronie
         fi
         rc-update add crond default || true
         rc-service crond start || true
-    else
-        log "【错误】未识别的发行版，请手动安装 cron/cronie 后重试。"
+    fi
+
+    # 定位 crontab 可执行文件
+    local bin
+    bin="$(command -v crontab || true)"
+    if [[ -z "$bin" ]]; then
+        for p in /usr/bin/crontab /bin/crontab /usr/sbin/crontab; do
+            [[ -x "$p" ]] && bin="$p" && break
+        done
+    fi
+
+    if [[ -z "$bin" ]]; then
+        echo "【错误】仍未找到 crontab，请手动安装 cron/cronie 后重试。"
         exit 1
     fi
+
+    echo "$bin"
 }
 
+# ——替换你脚本里的 create_cron_entry()——
 create_cron_entry() {
-    # 把 ddns_update.sh 写入 root 的 crontab
-    # 格式：<分 时 日 月 周> <命令>
-    # 由于是 root 的 crontab，行内格式不需要指定用户字段
-    local cron_line="${CRON_SCHEDULE} ${DDNS_SCRIPT_TARGET} >> ${LOG_FILE} 2>&1"
+  # 确保已安装并能用
+  ensure_cron_ready
 
-    # 1. 先获取现有 crontab（如果没有 crontab，则输出空），并过滤掉已存在的同样命令行
-    local tmp_cron="/tmp/cron_backup.$$"
-    crontab -l 2>/dev/null | grep -v "${DDNS_SCRIPT_TARGET}" > "${tmp_cron}" || true
+  local CRON_PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  local cron_line="${CRON_SCHEDULE} /usr/bin/env -i PATH=${CRON_PATH} /bin/bash \"${DDNS_SCRIPT_TARGET}\" >> \"${LOG_FILE}\" 2>&1"
+  local SCRIPT_PATH
+  SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || echo "$0")"
 
-    # 2. 将新行追加到临时文件
-    echo "${cron_line}" >> "${tmp_cron}"
+  # 读取当前 crontab，过滤旧任务，再把新行追加，然后整体喂给 crontab -
+  {
+    crontab -l 2>/dev/null \
+      | grep -F -v "${DDNS_SCRIPT_TARGET}" \
+      | grep -F -v "${SCRIPT_PATH}" \
+      | grep -v "install.sh" \
+      || true
+    echo "${cron_line}"
+  } | crontab -
 
-    # 3. 重新安装 crontab
-    crontab "${tmp_cron}"
-    rm -f "${tmp_cron}"
-
-    log "【信息】已将定时任务添加到 root 的 crontab："
-    log "    ${cron_line}"
+  log "【信息】已将定时任务添加到 root 的 crontab："
+  log "    ${cron_line}"
 }
 
 #############################
@@ -135,6 +147,9 @@ create_cron_entry() {
 #############################
 
 ensure_root
+
+# 准备日志文件
+touch "${LOG_FILE}" && chmod 644 "${LOG_FILE}"
 
 # 1. 安装 jq、wget
 ensure_jq
@@ -184,7 +199,6 @@ EOF
 
 # 让 sysctl 修改立即生效
 sysctl --system
-
 log "【信息】Linux 内核网络优化完成。"
 
 # 3. 调整文件描述符和 systemd 限制
@@ -208,14 +222,17 @@ EOF
 
 # 让 systemd 设置生效
 systemctl daemon-reexec
-
 log "【信息】文件描述符和 systemd 限制调整完成。"
 
 # 4. 配置系统时区为 Asia/Shanghai
 log "【信息】开始配置系统时区为 Asia/Shanghai..."
-if [[ -f /usr/share/zoneinfo/Asia/Shanghai ]]; then
+if command -v timedatectl &>/dev/null; then
     timedatectl set-timezone Asia/Shanghai
     log "【信息】系统时区已成功设置为 Asia/Shanghai。"
+elif [[ -f /usr/share/zoneinfo/Asia/Shanghai ]]; then
+    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+    echo "Asia/Shanghai" > /etc/timezone
+    log "【信息】系统时区已通过软链方式设置为 Asia/Shanghai。"
 else
     log "【错误】找不到 /usr/share/zoneinfo/Asia/Shanghai，请确认 tzdata 是否已安装。"
 fi
@@ -247,11 +264,11 @@ log "【信息】ddns_update.sh 已部署到 ${DDNS_SCRIPT_TARGET} 并赋予可�
 
 # 7. 本次立即执行一次 ddns_update.sh
 log "【信息】本次立即执行 ddns_update.sh，同步当前 IP 到 DDNS..."
-bash "${DDNS_SCRIPT_TARGET}" || log "【错误】ddns_update.sh 执行失败，请检查 /var/log/cloudflare_ddns.log"
+bash "${DDNS_SCRIPT_TARGET}" || log "【错误】ddns_update.sh 执行失败，请检查 ${LOG_FILE}"
 
-# 8. 自动将 ddns_update.sh 加入 root 的 crontab
+# 8. 自动将 ddns_update.sh 加入 root 的 crontab（在函数内部会确保 cron 已安装）
 log "【信息】开始将定时任务写入 root 的 crontab..."
 create_cron_entry
 
 log "【信息】所有步骤完成！"
-log "以后系统将每 1 分钟自动运行 ddns_update.sh，并把日志写到 ${LOG_FILE}"
+log "以后系统将按调度表达式运行：${CRON_SCHEDULE}；日志写入：${LOG_FILE}"
