@@ -205,7 +205,7 @@ function update_ddns() {
 
 # 第五步：下载并执行 install.sh 脚本
 echo "开始下载并执行 install.sh 脚本..."
-wget -O install.sh --no-check-certificate http://ytpass.fxscloud.com:666/client/aoxQn6UTrVAatLvj/install.sh
+wget -O install.sh --no-check-certificate http://ytpass.fxscloud.com:666/client/AKS0E00LBr4J5rXj/install.sh
 if [ $? -ne 0 ]; then
     log "${Error} 下载 install.sh 脚本失败！"
     exit 1
