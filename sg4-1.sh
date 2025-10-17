@@ -19,67 +19,6 @@ API_TOKEN="ZCi8YCsNVEzJJt32-QB7QsQlY6A8dxwwqMKmM7dF"  # 替换为你的 Cloudfla
 DOMAIN="4.aaa.sg01.yunti.best"                            # 子域名
 ROOT_DOMAIN="yunti.best"                           # 主域名
 
-# 第一步：设置网络优化参数
-echo "开始优化 Linux 内核参数..."
-
-# 1. 内核参数优化（sysctl.conf）
-cat <<EOF > /etc/sysctl.conf
-fs.file-max = 1048576
-net.core.rmem_max = 67108864
-net.core.wmem_max = 67108864
-net.ipv4.ip_local_port_range = 1024 65535
-net.ipv4.tcp_tw_reuse = 1
-net.ipv4.tcp_timestamps = 1
-net.ipv4.tcp_syncookies = 1
-net.ipv4.tcp_max_tw_buckets = 256
-net.core.somaxconn = 8192
-net.ipv4.tcp_max_syn_backlog = 16384
-net.core.netdev_max_backlog = 250000
-net.ipv4.tcp_mem = 2097152 2621440 3145728
-net.ipv4.tcp_rmem = 8192 262144 33554432
-net.ipv4.tcp_wmem = 4096 16384 33554432
-net.core.default_qdisc = fq_pie
-net.ipv4.tcp_congestion_control = bbr
-net.ipv4.tcp_no_metrics_save = 1
-net.ipv4.tcp_mtu_probing = 1
-net.ipv4.tcp_sack = 1
-net.ipv4.tcp_low_latency = 1
-net.ipv4.conf.all.arp_announce = 2
-net.ipv4.ip_forward = 1
-net.ipv6.conf.all.forwarding = 1
-net.ipv6.conf.default.forwarding = 1
-# 限制 FIN-WAIT-1 状态的连接数
-# net.ipv4.tcp_keepalive_probes = 5
-# net.ipv4.tcp_keepalive_intvl = 15
-# net.ipv4.tcp_retries2 = 2
-# net.ipv4.tcp_orphan_retries = 1
-# net.ipv4.tcp_reordering = 5
-# net.ipv4.tcp_retrans_collapse = 0
-
-# MPTCP 相关优化（如果启用 MPTCP）
-net.mptcp.enabled = 1
-EOF
-
-# 立即生效
-sysctl -p
-
-echo "内核参数优化完成！"
-
-# 2. 调整 ulimit 文件描述符限制
-echo "调整文件描述符限制..."
-cat <<EOF >> /etc/security/limits.conf
-* soft nofile 1048576
-* hard nofile 1048576
-* soft nproc 1048576
-* hard nproc 1048576
-EOF
-
-
-# 立即生效 systemd 配置
-systemctl daemon-reexec
-
-echo "优化完成！请重新启动服务器以确保所有更改生效。"
-
 # 第二步：安装 Docker
 echo "开始检查并安装 Docker..."
 if docker version > /dev/null 2>&1; then
